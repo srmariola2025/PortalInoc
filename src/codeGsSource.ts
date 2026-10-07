@@ -20,7 +20,7 @@ export const CODE_GS_RAW = `/**
  * Se deixado vazio (''), o script tentará SpreadsheetApp.getActiveSpreadsheet().
  * Em Web App autônomo, substitua pelo ID extraído da URL da sua planilha.
  */
-var SPREADSHEET_ID = '';
+var SPREADSHEET_ID = '1cRHEFNH19FcymqEu54FcU09h_LYJO31v4j0m5IfRUHo';
 
 /**
  * Nomes padronizados das 7 abas do sistema
@@ -48,15 +48,16 @@ var DEFAULT_CONFIG = {
   DRIVE_ROOT_FOLDER: 'PortalTickets'
 };
 
-// ========= SEÇÃO 2: ROTEADOR PRINCIPAL (doGet e doPost) =========
+// ========= SEÇÃO 2: ROTEADOR PRINCIPAL (doGet, doPost e HtmlService) =========
 
 /**
  * Handler para requisições HTTP GET.
- * Permite ping rápido pelo navegador e verificação de saúde da API.
+ * Roteia as páginas do portal servidas via HtmlService com proxy seguro do GitHub Pages,
+ * ou responde ao ping de monitoramento de saúde.
  */
 function doGet(e) {
   try {
-    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'ping';
+    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : '';
     if (action === 'ping') {
       return criarRespostaJson({
         sucesso: true,
@@ -65,21 +66,146 @@ function doGet(e) {
       });
     }
 
-    return criarRespostaJson({
-      sucesso: false,
-      erro: 'Método GET suportado apenas para ping. Envie requisições POST para operações da API.'
+    // Identifica a página solicitada via e.pathInfo (ou login.html como padrão)
+    var path = (e && e.pathInfo) ? e.pathInfo : '';
+    path = path.replace(/^\\/+/, '').trim();
+    if (!path) {
+      path = 'login.html';
+    }
+
+    // Allowlist restrita das páginas autorizadas
+    var ALLOWLIST = [
+      'login.html',
+      'dashboard.html',
+      'novo-ticket.html',
+      'ticket.html',
+      'trocar-senha.html',
+      'noc.html',
+      'noc-ticket.html',
+      'noc-importar.html',
+      'index.html'
+    ];
+
+    if (ALLOWLIST.indexOf(path) === -1) {
+      return HtmlService.createHtmlOutput(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>404 Não Encontrado</title>' +
+        '<style>body{font-family:Segoe UI,sans-serif;padding:40px;text-align:center;color:#0F172A;}' +
+        'h2{color:#E11D48;}</style></head><body>' +
+        '<h2>404 — Página Não Autorizada</h2>' +
+        '<p>A página solicitada não pertence à allowlist de rotas autorizadas do portal.</p>' +
+        '</body></html>'
+      ).setTitle('404 — Página Não Encontrada');
+    }
+
+    var baseUrl = 'https://srmariola2025.github.io/PortalInoc/';
+    var targetUrl = baseUrl + path;
+
+    var response = UrlFetchApp.fetch(targetUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true
     });
+
+    var statusCode = response.getResponseCode();
+    if (statusCode < 200 || statusCode >= 300) {
+      return HtmlService.createHtmlOutput(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro ao carregar página</title></head><body>' +
+        '<h3>Erro ao carregar página do repositório (' + statusCode + ')</h3>' +
+        '<p>Não foi possível obter ' + path + ' a partir de ' + baseUrl + '</p>' +
+        '</body></html>'
+      ).setTitle('Erro ' + statusCode);
+    }
+
+    var html = response.getContentText('UTF-8');
+
+    // 1. Reescrever caminhos de assets /PortalInoc/ para https://srmariola2025.github.io/PortalInoc/
+    html = html.replace(/\\/PortalInoc\\//g, baseUrl);
+
+    // 2. Reescrever caminhos relativos de assets (./css/, ./js/, ./assets/) para a URL pública
+    html = html.replace(/(href|src)=["'](?:\\.\\/)?(css|js|assets)\\//g, '$1="' + baseUrl + '$2/');
+    html = html.replace(/from\\s+["'](?:\\.\\/)?(js\\/[^"']+)["']/g, 'from \\'' + baseUrl + '$1\\'');
+    html = html.replace(/['"](?:\\.\\/)?assets\\/([^'"]+)['"]/g, '"' + baseUrl + 'assets/$1"');
+
+    // 3. Inserir <base href="<ScriptApp.getService().getUrl()>/" target="_top"> no head
+    var serviceUrl = '';
+    try {
+      serviceUrl = ScriptApp.getService().getUrl();
+    } catch (_) {}
+
+    if (serviceUrl) {
+      if (serviceUrl.charAt(serviceUrl.length - 1) !== '/') {
+        serviceUrl += '/';
+      }
+      var baseTag = '<base href="' + serviceUrl + '" target="_top">';
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/(<head[^>]*>)/i, '$1\\n  ' + baseTag);
+      } else {
+        html = baseTag + '\\n' + html;
+      }
+    }
+
+    return HtmlService.createHtmlOutput(html)
+      .setTitle('Portal INOC — MEO International');
+
   } catch (err) {
-    console.error('Erro em doGet: ' + err.toString());
-    return criarRespostaJson({ sucesso: false, erro: err.toString() });
+    console.error('Erro em doGet:', (err && (err.stack || err.message)) || String(err));
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro</title></head><body>' +
+      '<h3>Erro interno. Não foi possível carregar o portal. Tente novamente mais tarde.</h3>' +
+      '</body></html>'
+    ).setTitle('Erro');
   }
 }
 
 /**
- * Handler principal para requisições HTTP POST.
- * Todas as operações do portal transitam por este despachante.
+ * Handler para requisições HTTP POST.
+ * DESABILITADO: O portal é servido via HtmlService com chamadas google.script.run.
  */
 function doPost(e) {
+  return criarRespostaJson({
+    sucesso: false,
+    erro: 'Acesso POST HTTP público desabilitado. O portal é servido via HtmlService (google.script.run).'
+  });
+}
+
+/**
+ * Função global chamada a partir do cliente Web App via google.script.run.
+ * Despacha para a rotina privada interna processarApiInterno_ e converte a resposta
+ * TextOutput em um objeto JSON puro.
+ */
+function apiCallFromHtmlService(action, payload, token) {
+  try {
+    var fakeEvent = {
+      postData: {
+        contents: JSON.stringify({
+          action: action,
+          payload: payload || {},
+          token: token || null
+        })
+      }
+    };
+    var textOutput = processarApiInterno_(fakeEvent);
+    if (textOutput && typeof textOutput.getContent === 'function') {
+      return JSON.parse(textOutput.getContent());
+    } else if (typeof textOutput === 'string') {
+      return JSON.parse(textOutput);
+    } else if (textOutput && typeof textOutput === 'object') {
+      return textOutput;
+    }
+    return { sucesso: false, erro: 'Resposta inválida do processador interno.' };
+  } catch (err) {
+    console.error('Erro em apiCallFromHtmlService: ' + err.toString());
+    return {
+      sucesso: false,
+      erro: err.message || err.toString()
+    };
+  }
+}
+
+/**
+ * Processador REST privado interno do portal.
+ * Centraliza validação de sessão, permissões e despacho de ações.
+ */
+function processarApiInterno_(e) {
   try {
     var corpoRequisicao = {};
     if (e && e.postData && e.postData.contents) {
@@ -111,7 +237,7 @@ function doPost(e) {
       });
     }
 
-    console.log('Recebida ação: ' + action);
+    console.log('Recebida ação interna: ' + action);
 
     // ==========================================
     // 1. AÇÕES PÚBLICAS (Não exigem token de sessão)
@@ -184,6 +310,10 @@ function doPost(e) {
       return executarComentarTicket(emailUsuario, payload);
     }
 
+    if (action === 'baixar_anexo') {
+      return executarBaixarAnexo(emailUsuario, isMaster, payload);
+    }
+
     // ==========================================
     // 3. AÇÕES NOC MASTER (Exigem is_master = true)
     // ==========================================
@@ -223,7 +353,7 @@ function doPost(e) {
     });
 
   } catch (erroGeral) {
-    console.error('Falha crítica na execução do doPost: ' + erroGeral.stack || erroGeral.message);
+    console.error('Falha crítica na execução de processarApiInterno_: ' + erroGeral.stack || erroGeral.message);
     return criarRespostaJson({
       sucesso: false,
       erro: erroGeral.message || erroGeral.toString()
@@ -233,12 +363,78 @@ function doPost(e) {
 
 // ========= SEÇÃO 3: CONTROLADORES DE AÇÕES PÚBLICAS =========
 
+/**
+ * Validador e limitador de taxa de requisições por e-mail utilizando CacheService.
+ * @param {string} prefixo - Chave de identificação da ação (ex: 'rl_login_')
+ * @param {string} email - E-mail alvo
+ * @param {number} maxTentativas - Limite máximo de tentativas na janela
+ * @param {number} janelaSegundos - Tempo de validade do bloqueio em segundos
+ * @returns {{ permitido: boolean, motivo?: string }}
+ */
+function verificarRateLimitCache_(prefixo, email, maxTentativas, janelaSegundos) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (!cache) return { permitido: true };
+    var chaveEmail = prefixo + sanitizarString(email).toLowerCase();
+    var chaveBloqueio = 'lock_' + chaveEmail;
+
+    if (cache.get(chaveBloqueio)) {
+      return {
+        permitido: false,
+        motivo: 'Muitas tentativas para este e-mail. Por segurança, aguarde alguns minutos antes de tentar novamente.'
+      };
+    }
+
+    var tentativasStr = cache.get(chaveEmail);
+    var tentativas = tentativasStr ? parseInt(tentativasStr, 10) : 0;
+    tentativas++;
+
+    if (tentativas > maxTentativas) {
+      cache.put(chaveBloqueio, '1', janelaSegundos);
+      cache.remove(chaveEmail);
+      return {
+        permitido: false,
+        motivo: 'Limite de tentativas excedido para este e-mail. Aguarde alguns minutos.'
+      };
+    }
+
+    cache.put(chaveEmail, tentativas.toString(), janelaSegundos);
+    return { permitido: true };
+  } catch (err) {
+    console.warn('Falha transitória em verificarRateLimitCache_: ' + err.toString());
+    return { permitido: true };
+  }
+}
+
+/**
+ * Limpa o contador de tentativas no CacheService para uma ação bem-sucedida.
+ */
+function limparRateLimitCache_(prefixo, email) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      var chaveEmail = prefixo + sanitizarString(email).toLowerCase();
+      cache.remove(chaveEmail);
+      cache.remove('lock_' + chaveEmail);
+    }
+  } catch (_) {}
+}
+
+/**
+ * Etapa 1 do Login: Valida email e senha com SHA-256, gera OTP e envia por e-mail.
+ */
 function executarSolicitarLogin(payload) {
   var email = sanitizarString(payload.email).toLowerCase();
   var senha = sanitizarString(payload.senha);
 
   if (!email || !senha) {
     return criarRespostaJson({ sucesso: false, erro: 'Email e senha são obrigatórios.' });
+  }
+
+  // Rate limiting no login por e-mail (máx 5 tentativas por 15 min)
+  var limite = verificarRateLimitCache_('rl_login_', email, 5, 900);
+  if (!limite.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limite.motivo });
   }
 
   var cliente = obterClientePorEmail(email);
@@ -255,6 +451,9 @@ function executarSolicitarLogin(payload) {
     return criarRespostaJson({ sucesso: false, erro: 'Credenciais inválidas.' });
   }
 
+  // Credenciais válidas: limpa tentativas de login
+  limparRateLimitCache_('rl_login_', email);
+
   var config = obterConfiguracoes();
   var codigoOtp = gerarCodigoOtpNumerico();
   var agora = new Date();
@@ -266,9 +465,10 @@ function executarSolicitarLogin(payload) {
     codigoOtp,
     agora,
     expiraEm,
-    false
+    false // utilizado
   ]);
 
+  // Envia OTP por e-mail profissional
   enviarEmailOtp(email, cliente.nome_empresa, codigoOtp, config.OTP_EXPIRA_MIN);
 
   console.log('OTP gerado com sucesso para: ' + email);
@@ -279,6 +479,9 @@ function executarSolicitarLogin(payload) {
   });
 }
 
+/**
+ * Etapa 2 do Login: Valida código OTP de 6 dígitos e emite token UUID de sessão.
+ */
 function executarValidarOtp(payload) {
   var email = sanitizarString(payload.email).toLowerCase();
   var otpInformado = sanitizarString(payload.otp);
@@ -287,11 +490,18 @@ function executarValidarOtp(payload) {
     return criarRespostaJson({ sucesso: false, erro: 'Email e código OTP são obrigatórios.' });
   }
 
+  // Rate limiting nas tentativas de validação de OTP (máx 5 tentativas por 10 min)
+  var limiteOtp = verificarRateLimitCache_('rl_otp_', email, 5, 600);
+  if (!limiteOtp.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limiteOtp.motivo });
+  }
+
   var sheetOtps = getSheet(SHEETS.OTPS);
   var dadosOtps = sheetOtps.getDataRange().getValues();
   var agora = new Date();
   var linhaEncontrada = -1;
 
+  // Busca do mais recente para o mais antigo
   for (var i = dadosOtps.length - 1; i >= 1; i--) {
     var regEmail = sanitizarString(dadosOtps[i][0]).toLowerCase();
     var regOtp = sanitizarString(dadosOtps[i][1]);
@@ -314,6 +524,10 @@ function executarValidarOtp(payload) {
     return criarRespostaJson({ sucesso: false, erro: 'Código OTP inválido ou não encontrado.' });
   }
 
+  // OTP validado com sucesso: limpa o contador de tentativas
+  limparRateLimitCache_('rl_otp_', email);
+
+  // Marca OTP como utilizado
   sheetOtps.getRange(linhaEncontrada, 5).setValue(true);
 
   var cliente = obterClientePorEmail(email);
@@ -333,6 +547,7 @@ function executarValidarOtp(payload) {
     expiraSessao
   ]);
 
+  // Atualiza último login na aba CLIENTES
   var sheetClientes = getSheet(SHEETS.CLIENTES);
   var dadosClientes = sheetClientes.getDataRange().getValues();
   for (var c = 1; c < dadosClientes.length; c++) {
@@ -358,10 +573,19 @@ function executarValidarOtp(payload) {
   });
 }
 
+/**
+ * Recuperação de senha: gera senha temporária de 8 chars, salva hash e marca flag.
+ */
 function executarRecuperarSenha(payload) {
   var email = sanitizarString(payload.email).toLowerCase();
   if (!email) {
     return criarRespostaJson({ sucesso: false, erro: 'Informe o e-mail cadastrado.' });
+  }
+
+  // Rate limiting em recuperação de senha (máx 3 tentativas por 15 min)
+  var limiteRecup = verificarRateLimitCache_('rl_recup_', email, 3, 900);
+  if (!limiteRecup.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limiteRecup.motivo });
   }
 
   var sheetClientes = getSheet(SHEETS.CLIENTES);
@@ -378,6 +602,7 @@ function executarRecuperarSenha(payload) {
   }
 
   if (linhaCliente === -1) {
+    // Por segurança e padrão corporativo, informa sucesso neutro
     return criarRespostaJson({
       sucesso: true,
       mensagem: 'Se o e-mail estiver cadastrado, as instruções e nova credencial temporária foram enviadas.'
@@ -387,8 +612,8 @@ function executarRecuperarSenha(payload) {
   var senhaTemporaria = gerarStringAleatoria(8);
   var novoHash = hashSenha(senhaTemporaria);
 
-  sheetClientes.getRange(linhaCliente, 4).setValue(novoHash);
-  sheetClientes.getRange(linhaCliente, 5).setValue(true);
+  sheetClientes.getRange(linhaCliente, 4).setValue(novoHash); // senha_hash
+  sheetClientes.getRange(linhaCliente, 5).setValue(true);     // senha_temporaria
 
   enviarEmailRecuperacaoSenha(email, nomeCliente, senhaTemporaria);
 
@@ -398,6 +623,9 @@ function executarRecuperarSenha(payload) {
   });
 }
 
+/**
+ * Troca obrigatória de senha temporária por nova senha definitiva.
+ */
 function executarTrocarSenhaTemporaria(payload) {
   var email = sanitizarString(payload.email).toLowerCase();
   var senhaTemp = sanitizarString(payload.senha_temp);
@@ -438,7 +666,7 @@ function executarTrocarSenhaTemporaria(payload) {
 
   var novoHashDefinitivo = hashSenha(novaSenha);
   sheetClientes.getRange(linhaCliente, 4).setValue(novoHashDefinitivo);
-  sheetClientes.getRange(linhaCliente, 5).setValue(false);
+  sheetClientes.getRange(linhaCliente, 5).setValue(false); // remove a flag
 
   return criarRespostaJson({
     sucesso: true,
@@ -448,6 +676,9 @@ function executarTrocarSenhaTemporaria(payload) {
 
 // ========= SEÇÃO 4: CONTROLADORES DE CLIENTE B2B =========
 
+/**
+ * Lista circuitos ATIVOS associados ao cliente autenticado.
+ */
 function executarListarMeusCircuitos(emailUsuario) {
   var cliente = obterClientePorEmail(emailUsuario);
   if (!cliente) {
@@ -480,6 +711,9 @@ function executarListarMeusCircuitos(emailUsuario) {
   });
 }
 
+/**
+ * Lista tickets do cliente logado com contagem de comentários e ordenados por abertura descrescente.
+ */
 function executarListarMeusTickets(emailUsuario) {
   var cliente = obterClientePorEmail(emailUsuario);
   if (!cliente) {
@@ -521,6 +755,7 @@ function executarListarMeusTickets(emailUsuario) {
     }
   }
 
+  // Ordena por data_abertura mais recente primeiro
   tickets.sort(function(a, b) {
     return b.data_abertura_raw - a.data_abertura_raw;
   });
@@ -531,6 +766,10 @@ function executarListarMeusTickets(emailUsuario) {
   });
 }
 
+/**
+ * Abertura de ticket: valida circuito, gera ID TK-AAAAMMDD-NNNN, pasta no Drive,
+ * salva anexos em Base64 e envia notificações automáticas.
+ */
 function executarAbrirTicket(emailUsuario, payload) {
   var cliente = obterClientePorEmail(emailUsuario);
   if (!cliente) {
@@ -560,6 +799,7 @@ function executarAbrirTicket(emailUsuario, payload) {
     });
   }
 
+  // Valida se o circuito pertence ao cliente
   var circuito = obterCircuitoPorId(idCircuito);
   if (!circuito || circuito.id_cliente !== cliente.id_cliente) {
     return criarRespostaJson({
@@ -572,6 +812,7 @@ function executarAbrirTicket(emailUsuario, payload) {
   var pastaDrive = obterOuCriarPastaTicket(idTicket);
   var pastaDriveUrl = pastaDrive ? pastaDrive.getUrl() : '';
 
+  // Processa anexos iniciais se existirem
   var urlsAnexos = [];
   if (pastaDrive && anexosBase64.length > 0) {
     for (var a = 0; a < anexosBase64.length; a++) {
@@ -595,11 +836,12 @@ function executarAbrirTicket(emailUsuario, payload) {
     'ABERTO',
     agora,
     agora,
-    '',
-    '',
+    '', // data_pendencia_expira
+    '', // data_fechamento
     pastaDriveUrl
   ]);
 
+  // Se houver anexos, registra primeiro comentário com links
   if (urlsAnexos.length > 0) {
     var sheetComentarios = getSheet(SHEETS.COMENTARIOS);
     sheetComentarios.appendRow([
@@ -613,6 +855,7 @@ function executarAbrirTicket(emailUsuario, payload) {
     ]);
   }
 
+  // Dispara emails de abertura
   try {
     enviarEmailNovoTicketNoc(cliente, circuito, idTicket, tipoIncidente, descricao, pastaDriveUrl);
     enviarEmailConfirmacaoCliente(cliente, circuito, idTicket, tipoIncidente, descricao);
@@ -628,6 +871,10 @@ function executarAbrirTicket(emailUsuario, payload) {
   });
 }
 
+/**
+ * Consulta detalhes de um ticket e sua linha do tempo (CRM).
+ * Valida se o cliente logado é proprietário do ticket (ou se é NOC).
+ */
 function executarVerTicket(emailUsuario, isMaster, payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   if (!idTicket) {
@@ -669,6 +916,10 @@ function executarVerTicket(emailUsuario, isMaster, payload) {
   });
 }
 
+/**
+ * Comentário adicionado pelo cliente no ticket.
+ * Regra: Cliente NUNCA pode comentar em ticket com status RESOLVIDO.
+ */
 function executarComentarTicket(emailUsuario, payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   var mensagem = sanitizarString(payload.mensagem);
@@ -716,8 +967,10 @@ function executarComentarTicket(emailUsuario, payload) {
     agora
   ]);
 
+  // Atualiza data_ultima_atualizacao no ticket
   atualizarDataModificacaoTicket(idTicket, agora);
 
+  // Notifica o NOC por e-mail
   try {
     enviarEmailComentarioClienteParaNoc(cliente, ticket, mensagem, anexoUrl);
   } catch (errEmail) {
@@ -732,8 +985,130 @@ function executarComentarTicket(emailUsuario, payload) {
   });
 }
 
+/**
+ * Extrai o ID limpo de um arquivo do Google Drive a partir de ID ou URL.
+ */
+function extrairFileId_(ref) {
+  if (!ref) return '';
+  var str = ref.toString().trim();
+  var match = str.match(/\\/d\\/([a-zA-Z0-9_-]{15,})/);
+  if (match && match[1]) return match[1];
+  var matchId = str.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+  if (matchId && matchId[1]) return matchId[1];
+  if (/^[a-zA-Z0-9_-]{15,}$/.test(str)) return str;
+  return str;
+}
+
+/**
+ * Ação autenticada para download seguro de anexo do ticket.
+ * Valida sessão, ticket, propriedade (cliente dono vs NOC Master),
+ * restringe estritamente aos fileIds referenciados nos comentários do ticket,
+ * rejeita arquivos maiores que 10 MB e devolve { sucesso: true, nome, tipo_mime, base64 }.
+ */
+function executarBaixarAnexo(emailUsuario, isMaster, payload) {
+  var idTicket = sanitizarString(payload.id_ticket);
+  var idArquivoRef = sanitizarString(payload.id_arquivo);
+
+  if (!idTicket || !idArquivoRef) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Parâmetros id_ticket e id_arquivo são obrigatórios.'
+    });
+  }
+
+  var targetFileId = extrairFileId_(idArquivoRef);
+  if (!targetFileId) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Identificador de anexo inválido.'
+    });
+  }
+
+  // 1. Validar ticket e permissão de acesso
+  var ticket = obterTicketPorId(idTicket);
+  if (!ticket) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Ticket ' + idTicket + ' não encontrado.'
+    });
+  }
+
+  if (!isMaster) {
+    var cliente = obterClientePorEmail(emailUsuario);
+    if (!cliente || cliente.id_cliente !== ticket.id_cliente) {
+      return criarRespostaJson({
+        sucesso: false,
+        erro: 'Acesso negado: você não tem permissão para acessar os anexos deste ticket.'
+      });
+    }
+  }
+
+  // 2. Verificar se o fileId está efetivamente referenciado nos comentários do ticket
+  var sheetComentarios = getSheet(SHEETS.COMENTARIOS);
+  var dadosComentarios = sheetComentarios.getDataRange().getValues();
+  var arquivoAutorizado = false;
+
+  for (var i = 1; i < dadosComentarios.length; i++) {
+    var rowTicket = sanitizarString(dadosComentarios[i][1]);
+    if (rowTicket === idTicket) {
+      var anexoCol = sanitizarString(dadosComentarios[i][5]);
+      var msgCol = sanitizarString(dadosComentarios[i][4]);
+      if (anexoCol && (extrairFileId_(anexoCol) === targetFileId || anexoCol.indexOf(targetFileId) > -1)) {
+        arquivoAutorizado = true;
+        break;
+      }
+      if (msgCol && (msgCol.indexOf(targetFileId) > -1 || extrairFileId_(msgCol) === targetFileId)) {
+        arquivoAutorizado = true;
+        break;
+      }
+    }
+  }
+
+  if (!arquivoAutorizado) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Arquivo não autorizado ou não pertence aos comentários deste ticket.'
+    });
+  }
+
+  // 3. Obter arquivo do Google Drive, verificar limite de 10 MB e retornar base64
+  try {
+    var arquivoDrive = DriveApp.getFileById(targetFileId);
+    var tamanhoBytes = arquivoDrive.getSize();
+    var limiteMaximoBytes = 10 * 1024 * 1024; // 10 MB
+
+    if (tamanhoBytes > limiteMaximoBytes) {
+      return criarRespostaJson({
+        sucesso: false,
+        erro: 'Arquivo excede o limite máximo permitido de 10 MB.'
+      });
+    }
+
+    var blob = arquivoDrive.getBlob();
+    var base64 = Utilities.base64Encode(blob.getBytes());
+    var nome = arquivoDrive.getName();
+    var mime = arquivoDrive.getMimeType() || blob.getContentType() || 'application/octet-stream';
+
+    return criarRespostaJson({
+      sucesso: true,
+      nome: nome,
+      tipo_mime: mime,
+      base64: base64
+    });
+  } catch (errDrive) {
+    console.error('Erro ao acessar arquivo no Drive: ' + errDrive.toString());
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Não foi possível acessar o arquivo no Drive: ' + errDrive.message
+    });
+  }
+}
+
 // ========= SEÇÃO 5: CONTROLADORES NOC MASTER =========
 
+/**
+ * Lista todos os tickets da operadora com múltiplos filtros opcionais.
+ */
 function executarListarTodosTickets(payload) {
   var filtroStatus = sanitizarString(payload.status);
   var filtroCliente = sanitizarString(payload.id_cliente);
@@ -789,6 +1164,7 @@ function executarListarTodosTickets(payload) {
     });
   }
 
+  // Ordena por data mais recente
   lista.sort(function(a, b) {
     return b.data_abertura_raw - a.data_abertura_raw;
   });
@@ -800,6 +1176,9 @@ function executarListarTodosTickets(payload) {
   });
 }
 
+/**
+ * Consulta de ticket para NOC Master (sem filtro de propriedade).
+ */
 function executarVerTicketMaster(payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   if (!idTicket) {
@@ -839,6 +1218,15 @@ function executarVerTicketMaster(payload) {
   });
 }
 
+/**
+ * NOC altera status do ticket.
+ * Regras:
+ * - Status aceitos: ABERTO, EM_RESOLUCAO, PENDENTE, RESOLVIDO.
+ * - Se PENDENTE -> data_pendencia_expira é OBRIGATÓRIA.
+ * - Se RESOLVIDO -> preenche data_fechamento com agora.
+ * - Registra comentário de auditoria automática.
+ * - Dispara e-mail para o cliente.
+ */
 function executarAlterarStatus(emailOperadorNoc, payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   var novoStatus = sanitizarString(payload.novo_status).toUpperCase();
@@ -893,11 +1281,13 @@ function executarAlterarStatus(emailOperadorNoc, payload) {
     dataFechamentoVal = agora;
   }
 
+  // Atualiza colunas: F(status), H(data_ultima_atualizacao), I(data_pendencia_expira), J(data_fechamento)
   sheetTickets.getRange(linhaTicket, 6).setValue(novoStatus);
   sheetTickets.getRange(linhaTicket, 8).setValue(agora);
   sheetTickets.getRange(linhaTicket, 9).setValue(dataPendenciaVal);
   sheetTickets.getRange(linhaTicket, 10).setValue(dataFechamentoVal);
 
+  // Registro automático de auditoria na aba COMENTARIOS
   var msgAuditoria = 'Status alterado de [' + statusAnterior + '] para [' + novoStatus + '] pelo operador NOC (' + emailOperadorNoc + ').';
   if (novoStatus === 'PENDENTE') {
     msgAuditoria += ' Prazo de retorno do cliente fixado até: ' + formatarData(dataPendenciaVal, DEFAULT_CONFIG.TIMEZONE);
@@ -914,6 +1304,7 @@ function executarAlterarStatus(emailOperadorNoc, payload) {
     agora
   ]);
 
+  // Notifica o cliente por e-mail
   var cliente = obterClientePorId(idCliente);
   if (cliente && cliente.email_login) {
     try {
@@ -929,6 +1320,9 @@ function executarAlterarStatus(emailOperadorNoc, payload) {
   });
 }
 
+/**
+ * NOC adiciona comentário técnico e anexo com notificação imediata ao cliente.
+ */
 function executarComentarMaster(emailOperadorNoc, payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   var mensagem = sanitizarString(payload.mensagem);
@@ -965,6 +1359,7 @@ function executarComentarMaster(emailOperadorNoc, payload) {
 
   atualizarDataModificacaoTicket(idTicket, agora);
 
+  // Notifica o cliente
   var cliente = obterClientePorId(ticket.id_cliente);
   if (cliente && cliente.email_login) {
     try {
@@ -982,6 +1377,11 @@ function executarComentarMaster(emailOperadorNoc, payload) {
   });
 }
 
+/**
+ * Reabertura de ticket pelo NOC.
+ * Regra CRÍTICA: Só permite reabrir se status=RESOLVIDO E data_fechamento for HOJE (mesmo dia civil).
+ * Compara utilizando Utilities.formatDate com timezone America/Sao_Paulo.
+ */
 function executarReabrirTicket(emailOperadorNoc, payload) {
   var idTicket = sanitizarString(payload.id_ticket);
   if (!idTicket) {
@@ -1033,8 +1433,8 @@ function executarReabrirTicket(emailOperadorNoc, payload) {
   var agora = new Date();
   sheetTickets.getRange(linhaTicket, 6).setValue('EM_RESOLUCAO');
   sheetTickets.getRange(linhaTicket, 8).setValue(agora);
-  sheetTickets.getRange(linhaTicket, 9).setValue('');
-  sheetTickets.getRange(linhaTicket, 10).setValue('');
+  sheetTickets.getRange(linhaTicket, 9).setValue(''); // limpa pendência
+  sheetTickets.getRange(linhaTicket, 10).setValue(''); // limpa fechamento
 
   var msgAuditoria = 'Ticket reaberto para [EM_RESOLUCAO] no mesmo dia do fechamento pelo operador NOC (' + emailOperadorNoc + ').';
   var sheetComentarios = getSheet(SHEETS.COMENTARIOS);
@@ -1061,6 +1461,11 @@ function executarReabrirTicket(emailOperadorNoc, payload) {
   });
 }
 
+/**
+ * Importação em lote via CSV (UPSERT com delimitador ';').
+ * Suporta tipo "clientes" e "circuitos".
+ * Para clientes: aplica automaticamente hash SHA-256 se for senha nova.
+ */
 function executarImportarBaseCsv(payload) {
   var tipo = sanitizarString(payload.tipo).toLowerCase();
   var csvTexto = payload.csv_texto;
@@ -1098,6 +1503,7 @@ function executarImportarBaseCsv(payload) {
       }
     }
 
+    // Formato esperado de linha: id_cliente;nome_empresa;email_login;senha_inicial;status
     for (var l = 1; l < linhas.length; l++) {
       try {
         var colunas = linhas[l].split(';').map(function(c) { return sanitizarString(c); });
@@ -1130,7 +1536,7 @@ function executarImportarBaseCsv(payload) {
             nomeEmpresa,
             emailLogin,
             senhaHash,
-            true,
+            true, // senha_temporaria = true para primeiro login
             status,
             agora,
             ''
@@ -1155,6 +1561,7 @@ function executarImportarBaseCsv(payload) {
       }
     }
 
+    // Formato esperado: id_circuito;id_cliente;nome_circuito;tipo_link;identificador_tecnico;status
     for (var m = 1; m < linhas.length; m++) {
       try {
         var cols = linhas[m].split(';').map(function(c) { return sanitizarString(c); });
@@ -1207,6 +1614,15 @@ function executarImportarBaseCsv(payload) {
 
 // ========= SEÇÃO 6: TRIGGERS AUTOMÁTICOS DE SISTEMA =========
 
+/**
+ * Trigger Automático 1: verificarSLAPendentes (executado a cada 30 minutos).
+ * Varre todos os tickets com status = PENDENTE.
+ * Se agora > data_pendencia_expira:
+ *  - Reverte status para ABERTO
+ *  - Limpa data_pendencia_expira
+ *  - Registra comentário automático de violação de SLA
+ *  - Dispara e-mail de ALERTA CRÍTICO para o NOC
+ */
 function verificarSLAPendentes() {
   console.log('Iniciando rotina de verificação de SLA Pendente...');
   try {
@@ -1227,10 +1643,12 @@ function verificarSLAPendentes() {
           var idCliente = dados[i][1];
           var cliInfo = mapaClientes[idCliente] || { nome: idCliente, email: '' };
 
+          // Reverte status para ABERTO e limpa prazo
           sheetTickets.getRange(i + 1, 6).setValue('ABERTO');
           sheetTickets.getRange(i + 1, 8).setValue(agora);
           sheetTickets.getRange(i + 1, 9).setValue('');
 
+          // Comentário automático no histórico
           var msgAlerta = 'ALERTA DE SLA: O prazo de pendência com o cliente expirou em ' +
                           formatarData(dataExpira, DEFAULT_CONFIG.TIMEZONE) +
                           '. O ticket foi reaberto automaticamente como [ABERTO] para atuação do NOC.';
@@ -1246,6 +1664,7 @@ function verificarSLAPendentes() {
             agora
           ]);
 
+          // E-mail de alerta crítico para NOC
           enviarEmailAlertaSlaNoc(idTicket, cliInfo.nome, dados[i][2], dataExpira);
           expiradosCount++;
         }
@@ -1258,13 +1677,20 @@ function verificarSLAPendentes() {
   }
 }
 
+/**
+ * Trigger Automático 2: limparSessoesExpiradas (executado diariamente às 23:55).
+ * Remove linhas da aba SESSOES onde data_expiracao < agora.
+ * Remove linhas da aba OTPS onde data_expiracao < agora OU utilizado = true.
+ */
 function limparSessoesExpiradas() {
   console.log('Iniciando rotina de limpeza de sessões e OTPs expirados...');
   var agora = new Date();
 
+  // 1. Limpeza de SESSOES
   try {
     var sheetSessoes = getSheet(SHEETS.SESSOES);
     var dadosSess = sheetSessoes.getDataRange().getValues();
+    // Itera de baixo para cima para deleção segura de linhas
     for (var s = dadosSess.length - 1; s >= 1; s--) {
       var expiraSess = dadosSess[s][3] ? new Date(dadosSess[s][3]) : null;
       if (expiraSess && agora.getTime() > expiraSess.getTime()) {
@@ -1275,6 +1701,7 @@ function limparSessoesExpiradas() {
     console.error('Erro ao limpar sessões: ' + errSess.toString());
   }
 
+  // 2. Limpeza de OTPS
   try {
     var sheetOtps = getSheet(SHEETS.OTPS);
     var dadosOtps = sheetOtps.getDataRange().getValues();
@@ -1293,14 +1720,19 @@ function limparSessoesExpiradas() {
   console.log('Rotina de limpeza de sessões finalizada com sucesso.');
 }
 
+/**
+ * Função utilitária para instalar os dois triggers programáticos no projeto Apps Script.
+ */
 function instalarTriggers() {
   removerTriggers();
 
+  // Trigger 1: SLA a cada 30 minutos
   ScriptApp.newTrigger('verificarSLAPendentes')
     .timeBased()
     .everyMinutes(30)
     .create();
 
+  // Trigger 2: Limpeza diária às 23:55
   ScriptApp.newTrigger('limparSessoesExpiradas')
     .timeBased()
     .atHour(23)
@@ -1312,6 +1744,9 @@ function instalarTriggers() {
   console.log('Triggers automáticos instalados com sucesso!');
 }
 
+/**
+ * Remove todos os triggers do projeto para evitar duplicações.
+ */
 function removerTriggers() {
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
@@ -1322,6 +1757,9 @@ function removerTriggers() {
 
 // ========= SEÇÃO 7: 7 TEMPLATES DE E-MAIL HTML RESPONSIVOS =========
 
+/**
+ * Template Base com estilos corporativos (Slate/Navy) e compatibilidade mobile.
+ */
 function comporEmailBase(titulo, conteudoHtml, rodapeCustom) {
   var config = obterConfiguracoes();
   var anoAtual = new Date().getFullYear();
@@ -1339,6 +1777,7 @@ function comporEmailBase(titulo, conteudoHtml, rodapeCustom) {
     '    <tr>' +
     '      <td align="center">' +
     '        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:620px; background-color:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 10px 25px -5px rgba(0,0,0,0.08); border:1px solid #e2e8f0;">' +
+    '          <!-- HEADER -->' +
     '          <tr>' +
     '            <td style="background-color:#0f172a; padding:24px 32px; border-bottom:3px solid #0284c7;">' +
     '              <table width="100%" cellpadding="0" cellspacing="0" border="0">' +
@@ -1354,11 +1793,13 @@ function comporEmailBase(titulo, conteudoHtml, rodapeCustom) {
     '              </table>' +
     '            </td>' +
     '          </tr>' +
+    '          <!-- CORPO -->' +
     '          <tr>' +
     '            <td style="padding:32px 32px 28px 32px;">' +
                    conteudoHtml +
     '            </td>' +
     '          </tr>' +
+    '          <!-- FOOTER -->' +
     '          <tr>' +
     '            <td style="background-color:#f8fafc; padding:20px 32px; border-top:1px solid #e2e8f0; font-size:12px; color:#64748b; line-height:1.6;">' +
     '              <table width="100%" cellpadding="0" cellspacing="0" border="0">' +
@@ -1383,6 +1824,9 @@ function comporEmailBase(titulo, conteudoHtml, rodapeCustom) {
     '</html>';
 }
 
+/**
+ * 1. Template de Email OTP (Autenticação em 2 etapas)
+ */
 function enviarEmailOtp(destinatario, nomeEmpresa, codigoOtp, minutosValidade) {
   var conteudo = '' +
     '<h2 style="font-size:20px; font-weight:700; color:#0f172a; margin-top:0; margin-bottom:12px;">Autenticação em Duas Etapas (2FA)</h2>' +
@@ -1409,6 +1853,9 @@ function enviarEmailOtp(destinatario, nomeEmpresa, codigoOtp, minutosValidade) {
   });
 }
 
+/**
+ * 2. Template de Email Recuperação de Senha
+ */
 function enviarEmailRecuperacaoSenha(destinatario, nomeEmpresa, senhaTemporaria) {
   var conteudo = '' +
     '<h2 style="font-size:20px; font-weight:700; color:#0f172a; margin-top:0; margin-bottom:12px;">Redefinição de Credencial de Acesso</h2>' +
@@ -1434,6 +1881,9 @@ function enviarEmailRecuperacaoSenha(destinatario, nomeEmpresa, senhaTemporaria)
   });
 }
 
+/**
+ * 3. Template de Email Novo Ticket (Para o NOC)
+ */
 function enviarEmailNovoTicketNoc(cliente, circuito, idTicket, tipoIncidente, descricao, driveUrl) {
   var config = obterConfiguracoes();
   var badgeCor = tipoIncidente === 'CORTE_TOTAL' ? '#ef4444' : (tipoIncidente === 'CORTE_PARCIAL' ? '#f59e0b' : '#3b82f6');
@@ -1478,6 +1928,9 @@ function enviarEmailNovoTicketNoc(cliente, circuito, idTicket, tipoIncidente, de
   });
 }
 
+/**
+ * 4. Template de Email Confirmação de Abertura (Para o Cliente)
+ */
 function enviarEmailConfirmacaoCliente(cliente, circuito, idTicket, tipoIncidente, descricao) {
   var conteudo = '' +
     '<h2 style="font-size:20px; font-weight:700; color:#0f172a; margin-top:0; margin-bottom:8px;">Chamado Aberto com Sucesso</h2>' +
@@ -1505,6 +1958,9 @@ function enviarEmailConfirmacaoCliente(cliente, circuito, idTicket, tipoIncident
   });
 }
 
+/**
+ * 5. Template de Email Comentário do NOC (Para o Cliente)
+ */
 function enviarEmailComentarioNocParaCliente(cliente, ticket, mensagemNoc, anexoUrl) {
   var conteudo = '' +
     '<h2 style="font-size:20px; font-weight:700; color:#0f172a; margin-top:0; margin-bottom:8px;">Atualização Técnica no Ticket ' + ticket.id_ticket + '</h2>' +
@@ -1528,6 +1984,9 @@ function enviarEmailComentarioNocParaCliente(cliente, ticket, mensagemNoc, anexo
   });
 }
 
+/**
+ * 6. Template de Email Comentário do Cliente (Para o NOC)
+ */
 function enviarEmailComentarioClienteParaNoc(cliente, ticket, mensagemCliente, anexoUrl) {
   var config = obterConfiguracoes();
   var conteudo = '' +
@@ -1549,6 +2008,9 @@ function enviarEmailComentarioClienteParaNoc(cliente, ticket, mensagemCliente, a
   });
 }
 
+/**
+ * 7. Template de Email Alerta Crítico SLA Expirado (Para o NOC)
+ */
 function enviarEmailAlertaSlaNoc(idTicket, nomeCliente, idCircuito, dataExpira) {
   var config = obterConfiguracoes();
   var dataFormatada = formatarData(dataExpira, config.TIMEZONE);
@@ -1584,6 +2046,9 @@ function enviarEmailAlertaSlaNoc(idTicket, nomeCliente, idCircuito, dataExpira) 
   });
 }
 
+/**
+ * Template de Notificação de Mudança de Status (Para o Cliente)
+ */
 function enviarEmailAtualizacaoStatus(cliente, idTicket, statusAntigo, novoStatus, msgAuditoria) {
   var conteudo = '' +
     '<h2 style="font-size:20px; font-weight:700; color:#0f172a; margin-top:0; margin-bottom:12px;">Alteração de Status no Ticket ' + idTicket + '</h2>' +
@@ -1609,6 +2074,9 @@ function enviarEmailAtualizacaoStatus(cliente, idTicket, statusAntigo, novoStatu
 
 // ========= SEÇÃO 8: FUNÇÕES AUXILIARES OBRIGATÓRIAS =========
 
+/**
+ * Retorna o objeto Sheet pelo nome ou lança erro explicativo.
+ */
 function getSheet(nome) {
   var ss;
   if (SPREADSHEET_ID && SPREADSHEET_ID.trim() !== '') {
@@ -1623,13 +2091,17 @@ function getSheet(nome) {
 
   var sheet = ss.getSheetByName(nome);
   if (!sheet) {
-    throw new Error('Aba "' + nome + '" não encontrada na planilha. Execute a função criarEstruturaPlanilha() primeiro.');
+    throw new Error('Aba "' + nome + '" não encontrada na planilha. Verifique a existência da aba na planilha vinculada.');
   }
   return sheet;
 }
 
+/**
+ * Lê chave-valor da aba CONFIG e mescla com DEFAULT_CONFIG.
+ */
 function obterConfiguracoes() {
   var config = {};
+  // Clona defaults
   for (var k in DEFAULT_CONFIG) {
     config[k] = DEFAULT_CONFIG[k];
   }
@@ -1655,6 +2127,9 @@ function obterConfiguracoes() {
   return config;
 }
 
+/**
+ * Gera hash SHA-256 da senha usando Utilities.computeDigest.
+ */
 function hashSenha(texto) {
   if (!texto) return '';
   var rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(texto), Utilities.Charset.UTF_8);
@@ -1669,15 +2144,24 @@ function hashSenha(texto) {
   return txtHash;
 }
 
+/**
+ * Gera código OTP numérico aleatório de 6 dígitos (100000 a 999999).
+ */
 function gerarCodigoOtpNumerico() {
   var num = Math.floor(100000 + Math.random() * 900000);
   return String(num);
 }
 
+/**
+ * Gera UUID v4 padrão via Utilities.getUuid().
+ */
 function gerarUUID() {
   return Utilities.getUuid();
 }
 
+/**
+ * Gera string alfanumérica aleatória do tamanho especificado.
+ */
 function gerarStringAleatoria(tamanho) {
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#';
   var resultado = '';
@@ -1687,6 +2171,9 @@ function gerarStringAleatoria(tamanho) {
   return resultado;
 }
 
+/**
+ * Formata objeto Date com Timezone seguro.
+ */
 function formatarData(data, timezone) {
   if (!data) return '';
   var tz = timezone || DEFAULT_CONFIG.TIMEZONE;
@@ -1695,16 +2182,25 @@ function formatarData(data, timezone) {
   return Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm:ssXXX");
 }
 
+/**
+ * Sanitiza strings e remove espaços espúrios.
+ */
 function sanitizarString(str) {
   if (str === null || str === undefined) return '';
   return String(str).trim();
 }
 
+/**
+ * Produz TextOutput JSON com headers amigáveis a CORS.
+ */
 function criarRespostaJson(objeto) {
   return ContentService.createTextOutput(JSON.stringify(objeto))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+/**
+ * Valida token de sessão na aba SESSOES e calcula tempo restante.
+ */
 function validarTokenSessao(token) {
   if (!token) {
     return { valida: false, motivo: 'Token de autenticação não fornecido.' };
@@ -1739,6 +2235,9 @@ function validarTokenSessao(token) {
   return { valida: false, motivo: 'Token de sessão inválido ou inexistente.' };
 }
 
+/**
+ * Verifica se um e-mail possui privilégios NOC MASTER.
+ */
 function verificarSeMaster(email) {
   if (!email) return false;
   var cleanEmail = email.toLowerCase().trim();
@@ -1748,6 +2247,7 @@ function verificarSeMaster(email) {
     return true;
   }
 
+  // Verifica se o ID do cliente é NOC-ADMIN ou prefixo NOC-
   var cliente = obterClientePorEmail(cleanEmail);
   if (cliente && (cliente.id_cliente === 'NOC-ADMIN' || cliente.id_cliente.indexOf('NOC-') === 0)) {
     return true;
@@ -1756,12 +2256,18 @@ function verificarSeMaster(email) {
   return false;
 }
 
+/**
+ * Lança erro caso o usuário não seja master.
+ */
 function garantirAcessoMaster(isMaster) {
   if (!isMaster) {
     throw new Error('Acesso restrito ao Network Operations Center (NOC Master).');
   }
 }
 
+/**
+ * Busca registro de cliente pelo e-mail na aba CLIENTES.
+ */
 function obterClientePorEmail(email) {
   if (!email) return null;
   var cleanEmail = email.toLowerCase().trim();
@@ -1785,6 +2291,9 @@ function obterClientePorEmail(email) {
   return null;
 }
 
+/**
+ * Busca registro de cliente pelo ID (ex: CLI-001).
+ */
 function obterClientePorId(id) {
   if (!id) return null;
   var cleanId = id.toString().trim();
@@ -1806,6 +2315,9 @@ function obterClientePorId(id) {
   return null;
 }
 
+/**
+ * Busca circuito pelo ID na aba CIRCUITOS.
+ */
 function obterCircuitoPorId(idCircuito) {
   if (!idCircuito) return null;
   var cleanId = idCircuito.toString().trim().toUpperCase();
@@ -1827,6 +2339,9 @@ function obterCircuitoPorId(idCircuito) {
   return null;
 }
 
+/**
+ * Busca ticket pelo ID na aba TICKETS.
+ */
 function obterTicketPorId(idTicket) {
   if (!idTicket) return null;
   var cleanId = idTicket.toString().trim();
@@ -1853,6 +2368,9 @@ function obterTicketPorId(idTicket) {
   return null;
 }
 
+/**
+ * Retorna todos os comentários de um ticket ordenados cronologicamente.
+ */
 function obterComentariosPorTicket(idTicket) {
   var sheetComentarios = getSheet(SHEETS.COMENTARIOS);
   var dados = sheetComentarios.getDataRange().getValues();
@@ -1881,6 +2399,9 @@ function obterComentariosPorTicket(idTicket) {
   return comentarios;
 }
 
+/**
+ * Retorna dicionário { id_ticket: total_comentarios }
+ */
 function obterContagemComentarios() {
   var mapa = {};
   try {
@@ -1896,6 +2417,9 @@ function obterContagemComentarios() {
   return mapa;
 }
 
+/**
+ * Mapeia todos os clientes em memória { id_cliente: { nome, email } }
+ */
 function obterMapaClientes() {
   var mapa = {};
   try {
@@ -1914,6 +2438,9 @@ function obterMapaClientes() {
   return mapa;
 }
 
+/**
+ * Mapeia circuitos { id_circuito: { nome, tipo } }
+ */
 function obterMapaCircuitos() {
   var mapa = {};
   try {
@@ -1932,6 +2459,9 @@ function obterMapaCircuitos() {
   return mapa;
 }
 
+/**
+ * Gera identificador sequencial de ticket diário no padrão: TK-AAAAMMDD-NNNN (maior do dia + 1).
+ */
 function gerarIdTicketSequencial() {
   var config = obterConfiguracoes();
   var hojePrefixo = 'TK-' + Utilities.formatDate(new Date(), config.TIMEZONE, 'yyyyMMdd') + '-';
@@ -1959,11 +2489,15 @@ function gerarIdTicketSequencial() {
   return hojePrefixo + strNumero;
 }
 
+/**
+ * Obtém ou cria a pasta no Google Drive: PortalTickets/{id_ticket}/
+ */
 function obterOuCriarPastaTicket(idTicket) {
   try {
     var config = obterConfiguracoes();
     var nomePastaRaiz = config.DRIVE_ROOT_FOLDER || 'PortalTickets';
 
+    // Pasta Raiz
     var pastasRaiz = DriveApp.getFoldersByName(nomePastaRaiz);
     var pastaRaiz;
     if (pastasRaiz.hasNext()) {
@@ -1972,6 +2506,7 @@ function obterOuCriarPastaTicket(idTicket) {
       pastaRaiz = DriveApp.createFolder(nomePastaRaiz);
     }
 
+    // Subpasta do ticket
     var subPastas = pastaRaiz.getFoldersByName(idTicket);
     if (subPastas.hasNext()) {
       return subPastas.next();
@@ -1984,6 +2519,11 @@ function obterOuCriarPastaTicket(idTicket) {
   }
 }
 
+/**
+ * Converte anexo Base64 em Blob e salva na pasta do Drive correspondente.
+ * CRÍTICO: Não expõe os arquivos publicamente (sem ANYONE_WITH_LINK).
+ * Ficam estritamente privados na conta do proprietário do Drive.
+ */
 function salvarAnexoEmDrive(itemBase64, pasta) {
   if (!itemBase64 || !pasta) return null;
   try {
@@ -1991,6 +2531,7 @@ function salvarAnexoEmDrive(itemBase64, pasta) {
     var mimeType = itemBase64.tipoMime || 'application/octet-stream';
     var dadosBase64 = itemBase64.base64 || '';
 
+    // Remove eventuais prefixos data:image/png;base64,
     if (dadosBase64.indexOf(',') > -1) {
       dadosBase64 = dadosBase64.split(',')[1];
     }
@@ -1999,15 +2540,18 @@ function salvarAnexoEmDrive(itemBase64, pasta) {
     var blob = Utilities.newBlob(bytes, mimeType, nomeArquivo);
     var arquivoCriado = pasta.createFile(blob);
 
-    arquivoCriado.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-    return arquivoCriado.getUrl();
+    // REMOVIDO: DriveApp.Access.ANYONE_WITH_LINK para manter os arquivos estritamente privados
+    // Retorna o ID do arquivo criado
+    return arquivoCriado.getId();
   } catch (err) {
     console.error('Erro ao salvar anexo no Drive: ' + err.toString());
     return null;
   }
 }
 
+/**
+ * Atualiza o timestamp de modificação de um ticket.
+ */
 function atualizarDataModificacaoTicket(idTicket, dataHora) {
   try {
     var sheetTickets = getSheet(SHEETS.TICKETS);
@@ -2023,9 +2567,22 @@ function atualizarDataModificacaoTicket(idTicket, dataHora) {
   }
 }
 
-// ========= SEÇÃO 9: FUNÇÃO DE SETUP COMPLETO DA PLANILHA =========
+// ========= SEÇÃO 9: AUDITORIA E SEGURANÇA DA PLANILHA =========
 
-function criarEstruturaPlanilha() {
+/**
+ * DESATIVADA POR SEGURANÇA: Esta rotina foi permanentemente desativada com sufixo _
+ * para preservar integralmente a estrutura existente, dados operacionais e contas cadastradas.
+ * Nenhuma alteração destrutiva é permitida.
+ */
+function criarEstruturaPlanilha_() {
+  throw new Error('A função criarEstruturaPlanilha foi permanentemente desativada para proteger os dados de produção e contas da planilha.');
+}
+
+/**
+ * Verificação SOMENTE-LEITURA opcional das abas e cabeçalhos da planilha (não modifica nem apaga nada).
+ * @returns {Object} Relatório de inspeção das abas e contagem de linhas
+ */
+function verificarEstruturaPlanilhaSomenteLeitura_() {
   var ss;
   if (SPREADSHEET_ID && SPREADSHEET_ID.trim() !== '') {
     ss = SpreadsheetApp.openById(SPREADSHEET_ID.trim());
@@ -2034,114 +2591,45 @@ function criarEstruturaPlanilha() {
   }
 
   if (!ss) {
-    throw new Error('Não foi possível identificar a planilha. Certifique-se de vincular o projeto à planilha ou definir SPREADSHEET_ID.');
+    throw new Error('Planilha não encontrada. Verifique o SPREADSHEET_ID.');
   }
 
-  var estiloCabecalho = function(range) {
-    range.setBackground('#0F172A')
-         .setFontColor('#FFFFFF')
-         .setFontWeight('bold')
-         .setFontFamily('Segoe UI')
-         .setHorizontalAlignment('center')
-         .setVerticalAlignment('middle');
+  var abasObrigatorias = [
+    SHEETS.CONFIG,
+    SHEETS.CLIENTES,
+    SHEETS.CIRCUITOS,
+    SHEETS.TICKETS,
+    SHEETS.COMENTARIOS,
+    SHEETS.SESSOES,
+    SHEETS.OTPS
+  ];
+
+  var relatorio = {
+    planilhaId: ss.getId(),
+    planilhaNome: ss.getName(),
+    abasEncontradas: [],
+    abasAusentes: []
   };
 
-  // 1. ABA CONFIG
-  var sheetConfig = ss.getSheetByName(SHEETS.CONFIG) || ss.insertSheet(SHEETS.CONFIG);
-  sheetConfig.clear();
-  var cabecalhoConfig = [['CHAVE', 'VALOR']];
-  sheetConfig.getRange(1, 1, 1, 2).setValues(cabecalhoConfig);
-  estiloCabecalho(sheetConfig.getRange(1, 1, 1, 2));
-  sheetConfig.setFrozenRows(1);
-  sheetConfig.getRange(2, 1, 8, 2).setValues([
-    ['SPREADSHEET_ID', ss.getId()],
-    ['EMAIL_NOC', 'inoc@meo.pt'],
-    ['NOME_EMPRESA', 'Telecom NOC Operations'],
-    ['LOGO_URL', 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=300&q=80'],
-    ['SESSAO_TIMEOUT_MIN', 15],
-    ['OTP_EXPIRA_MIN', 10],
-    ['TIMEZONE', 'America/Sao_Paulo'],
-    ['DRIVE_ROOT_FOLDER', 'PortalTickets']
-  ]);
-  sheetConfig.autoResizeColumns(1, 2);
-
-  // 2. ABA CLIENTES
-  var sheetClientes = ss.getSheetByName(SHEETS.CLIENTES) || ss.insertSheet(SHEETS.CLIENTES);
-  sheetClientes.clear();
-  var cabecalhoClientes = [['id_cliente', 'nome_empresa', 'email_login', 'senha_hash', 'senha_temporaria', 'status', 'data_criacao', 'ultimo_login']];
-  sheetClientes.getRange(1, 1, 1, 8).setValues(cabecalhoClientes);
-  estiloCabecalho(sheetClientes.getRange(1, 1, 1, 8));
-  sheetClientes.setFrozenRows(1);
-
-  var agora = new Date();
-  var hashClienteDemo = hashSenha('Cliente@2026');
-  var hashNocDemo = hashSenha('NocAdmin@2026');
-
-  sheetClientes.getRange(2, 1, 2, 8).setValues([
-    ['CLI-001', 'Acme Telecom Solutions Ltda', 'cliente@exemplo.com', hashClienteDemo, false, 'ATIVO', agora, ''],
-    ['NOC-ADMIN', 'Network Operations Center Team', 'inoc@meo.pt', hashNocDemo, false, 'ATIVO', agora, '']
-  ]);
-  sheetClientes.autoResizeColumns(1, 8);
-
-  // 3. ABA CIRCUITOS
-  var sheetCircuitos = ss.getSheetByName(SHEETS.CIRCUITOS) || ss.insertSheet(SHEETS.CIRCUITOS);
-  sheetCircuitos.clear();
-  var cabecalhoCircuitos = [['id_circuito', 'id_cliente', 'nome_circuito', 'tipo_link', 'identificador_tecnico', 'status']];
-  sheetCircuitos.getRange(1, 1, 1, 6).setValues(cabecalhoCircuitos);
-  estiloCabecalho(sheetCircuitos.getRange(1, 1, 1, 6));
-  sheetCircuitos.setFrozenRows(1);
-  sheetCircuitos.getRange(2, 1, 2, 6).setValues([
-    ['CIRC-SP-001', 'CLI-001', 'Link Fibra Matriz São Paulo (10 Gbps)', 'Fibra', 'VLAN-1004 / IP 200.198.110.45', 'ATIVO'],
-    ['CIRC-RJ-002', 'CLI-001', 'Link Backup Rádio Datacenter RJ (1 Gbps)', 'Radio', 'SSID-BKP-77 / IP 200.198.115.12', 'ATIVO']
-  ]);
-  sheetCircuitos.autoResizeColumns(1, 6);
-
-  // 4. ABA TICKETS
-  var sheetTickets = ss.getSheetByName(SHEETS.TICKETS) || ss.insertSheet(SHEETS.TICKETS);
-  sheetTickets.clear();
-  var cabecalhoTickets = [['id_ticket', 'id_cliente', 'id_circuito', 'tipo_incidente', 'descricao_inicial', 'status', 'data_abertura', 'data_ultima_atualizacao', 'data_pendencia_expira', 'data_fechamento', 'pasta_drive_anexos']];
-  sheetTickets.getRange(1, 1, 1, 11).setValues(cabecalhoTickets);
-  estiloCabecalho(sheetTickets.getRange(1, 1, 1, 11));
-  sheetTickets.setFrozenRows(1);
-  sheetTickets.autoResizeColumns(1, 11);
-
-  // 5. ABA COMENTARIOS
-  var sheetComentarios = ss.getSheetByName(SHEETS.COMENTARIOS) || ss.insertSheet(SHEETS.COMENTARIOS);
-  sheetComentarios.clear();
-  var cabecalhoComentarios = [['id_comentario', 'id_ticket', 'autor_tipo', 'autor_nome', 'mensagem', 'anexo_url', 'data_hora']];
-  sheetComentarios.getRange(1, 1, 1, 7).setValues(cabecalhoComentarios);
-  estiloCabecalho(sheetComentarios.getRange(1, 1, 1, 7));
-  sheetComentarios.setFrozenRows(1);
-  sheetComentarios.autoResizeColumns(1, 7);
-
-  // 6. ABA SESSOES
-  var sheetSessoes = ss.getSheetByName(SHEETS.SESSOES) || ss.insertSheet(SHEETS.SESSOES);
-  sheetSessoes.clear();
-  var cabecalhoSessoes = [['token_sessao', 'email_cliente', 'data_criacao', 'data_expiracao']];
-  sheetSessoes.getRange(1, 1, 1, 4).setValues(cabecalhoSessoes);
-  estiloCabecalho(sheetSessoes.getRange(1, 1, 1, 4));
-  sheetSessoes.setFrozenRows(1);
-  sheetSessoes.autoResizeColumns(1, 4);
-
-  // 7. ABA OTPS
-  var sheetOtps = ss.getSheetByName(SHEETS.OTPS) || ss.insertSheet(SHEETS.OTPS);
-  sheetOtps.clear();
-  var cabecalhoOtps = [['email', 'codigo_otp', 'data_criacao', 'data_expiracao', 'utilizado']];
-  sheetOtps.getRange(1, 1, 1, 5).setValues(cabecalhoOtps);
-  estiloCabecalho(sheetOtps.getRange(1, 1, 1, 5));
-  sheetOtps.setFrozenRows(1);
-  sheetOtps.autoResizeColumns(1, 5);
-
-  var abaPadraoPt = ss.getSheetByName('Página1');
-  if (abaPadraoPt && ss.getSheets().length > 1) {
-    try { ss.deleteSheet(abaPadraoPt); } catch (_) {}
-  }
-  var abaPadraoEn = ss.getSheetByName('Sheet1');
-  if (abaPadraoEn && ss.getSheets().length > 1) {
-    try { ss.deleteSheet(abaPadraoEn); } catch (_) {}
+  for (var i = 0; i < abasObrigatorias.length; i++) {
+    var nomeAba = abasObrigatorias[i];
+    var sheet = ss.getSheetByName(nomeAba);
+    if (sheet) {
+      var ultimaLinha = sheet.getLastRow();
+      var ultimaColuna = sheet.getLastColumn();
+      var cabecalhos = (ultimaLinha > 0 && ultimaColuna > 0)
+        ? sheet.getRange(1, 1, 1, ultimaColuna).getValues()[0]
+        : [];
+      relatorio.abasEncontradas.push({
+        aba: nomeAba,
+        totalLinhas: ultimaLinha,
+        cabecalhos: cabecalhos
+      });
+    } else {
+      relatorio.abasAusentes.push(nomeAba);
+    }
   }
 
-  console.log('Estrutura de 7 abas criada e configurada com sucesso na planilha ID: ' + ss.getId());
-  return 'Estrutura criada com sucesso na planilha: ' + ss.getName() + ' (ID: ' + ss.getId() + ')';
+  return relatorio;
 }
 `;

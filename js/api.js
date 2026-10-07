@@ -1,13 +1,39 @@
 // ==========================================================================
-// JS/API.JS — CLIENTE HTTP CENTRAL COM O GOOGLE APPS SCRIPT WEB APP
+// JS/API.JS — CLIENTE COM O GOOGLE APPS SCRIPT WEB APP (HTMLSERVICE)
 // ==========================================================================
 
-import { API_URL, DEFAULT_API_URL } from './config.js';
 import { mostrarToast } from './utils.js';
 
 /**
- * Função central de comunicação com o backend Apps Script via POST.
- * CRÍTICO: Usa 'text/plain;charset=utf-8' para contornar restrições de CORS Preflight.
+ * Executa chamada assíncrona ao backend utilizando google.script.run com handlers.
+ */
+function chamarAppsScriptRun(action, payload, token) {
+  return new Promise((resolve, reject) => {
+    try {
+      window.google.script.run
+        .withSuccessHandler((resposta) => {
+          if (!resposta || resposta.sucesso === false) {
+            reject(new Error((resposta && resposta.erro) || `Erro retornado pelo backend na ação [${action}].`));
+          } else {
+            resolve(resposta);
+          }
+        })
+        .withFailureHandler((erro) => {
+          console.error(`Erro no google.script.run [${action}]:`, erro);
+          reject(new Error(erro && erro.message ? erro.message : String(erro)));
+        })
+        .apiCallFromHtmlService(action, payload, token);
+    } catch (errCall) {
+      reject(errCall);
+    }
+  });
+}
+
+/**
+ * Função central de comunicação com o backend Apps Script.
+ * Prioriza estritamente google.script.run quando o portal é servido no Web App.
+ * Permite simulador local exclusivamente em localhost ou preview de desenvolvimento.
+ * NUNCA cai silenciosamente no simulador para o site publicado (ex: no domínio github.io).
  */
 export async function apiRequest(action, payload = {}, requerToken = true) {
   const token = requerToken ? localStorage.getItem('token') : null;
@@ -19,41 +45,28 @@ export async function apiRequest(action, payload = {}, requerToken = true) {
     throw new Error('Sessão expirada ou não autenticada.');
   }
 
-  // Verifica se o desenvolvedor ainda não substituiu a URL do Apps Script
-  const urlAtual = localStorage.getItem('MEO_API_URL') || API_URL;
-  if (!urlAtual || urlAtual === DEFAULT_API_URL) {
-    // Modo simulação / fallback local se ainda não tiver deploy configurado
+  // 1. Se estiver no ambiente nativo do Apps Script Web App (HtmlService)
+  if (typeof window !== 'undefined' && window.google && window.google.script && window.google.script.run) {
+    return await chamarAppsScriptRun(action, payload, token);
+  }
+
+  // 2. Ambiente de desenvolvimento (apenas localhost / preview de desenvolvimento)
+  const isDev = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.applet.ai') ||
+    window.location.hostname.includes('webcontainer') ||
+    window.location.port !== ''
+  );
+
+  if (isDev) {
     return executarSimuladorLocal(action, payload, token);
   }
 
-  try {
-    const response = await fetch(urlAtual, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8', // CRÍTICO para Google Apps Script
-      },
-      body: JSON.stringify({ action, payload, token }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Falha no servidor HTTP: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.sucesso) {
-      throw new Error(data.erro || 'Falha ao processar solicitação no backend.');
-    }
-
-    return data;
-  } catch (error) {
-    console.error(`Erro na ação [${action}]:`, error);
-    // Se a requisição falhar por rede/CORS e estiver na URL padrão, tenta fallback
-    if (urlAtual === DEFAULT_API_URL || urlAtual.includes('COLE_AQUI')) {
-      return executarSimuladorLocal(action, payload, token);
-    }
-    throw error;
-  }
+  // 3. Produção fora do host Apps Script (ex: direto no github.io)
+  const msgErro = 'Acesso direto via GitHub Pages não suportado. Por favor, acesse o portal através da URL oficial do Google Apps Script Web App.';
+  mostrarToast(msgErro, 'erro');
+  throw new Error(msgErro);
 }
 
 // --------------------------------------------------------------------------
@@ -100,6 +113,10 @@ export async function verTicket(idTicket) {
 
 export async function comentarTicket(idTicket, mensagem, anexos = []) {
   return apiRequest('comentar_ticket', { id_ticket: idTicket, mensagem, anexos_base64: anexos }, true);
+}
+
+export async function baixarAnexo(idTicket, idArquivo) {
+  return apiRequest('baixar_anexo', { id_ticket: idTicket, id_arquivo: idArquivo }, true);
 }
 
 // 3. NOC Master (Exigem Token de Usuário Master)
@@ -400,6 +417,15 @@ function executarSimuladorLocal(action, payload, token) {
 
     case 'importar_base_csv':
       return { sucesso: true, tipo: payload.tipo, inseridos: 2, atualizados: 1, erros: [] };
+
+    case 'baixar_anexo': {
+      return {
+        sucesso: true,
+        nome: 'anexo_simulado.txt',
+        tipo_mime: 'text/plain',
+        base64: btoa('Demonstracao de conteudo de arquivo anexado - Telecom MEO')
+      };
+    }
 
     default:
       throw new Error(`Ação [${action}] não reconhecida.`);

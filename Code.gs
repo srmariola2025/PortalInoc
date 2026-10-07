@@ -17,7 +17,7 @@
  * Se deixado vazio (''), o script tentará SpreadsheetApp.getActiveSpreadsheet().
  * Em Web App autônomo, substitua pelo ID extraído da URL da sua planilha.
  */
-var SPREADSHEET_ID = '';
+var SPREADSHEET_ID = '1cRHEFNH19FcymqEu54FcU09h_LYJO31v4j0m5IfRUHo';
 
 /**
  * Nomes padronizados das 7 abas do sistema
@@ -45,15 +45,16 @@ var DEFAULT_CONFIG = {
   DRIVE_ROOT_FOLDER: 'PortalTickets'
 };
 
-// ========= SEÇÃO 2: ROTEADOR PRINCIPAL (doGet e doPost) =========
+// ========= SEÇÃO 2: ROTEADOR PRINCIPAL (doGet, doPost e HtmlService) =========
 
 /**
  * Handler para requisições HTTP GET.
- * Permite ping rápido pelo navegador e verificação de saúde da API.
+ * Roteia as páginas do portal servidas via HtmlService com proxy seguro do GitHub Pages,
+ * ou responde ao ping de monitoramento de saúde.
  */
 function doGet(e) {
   try {
-    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'ping';
+    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : '';
     if (action === 'ping') {
       return criarRespostaJson({
         sucesso: true,
@@ -62,21 +63,146 @@ function doGet(e) {
       });
     }
 
-    return criarRespostaJson({
-      sucesso: false,
-      erro: 'Método GET suportado apenas para ping. Envie requisições POST para operações da API.'
+    // Identifica a página solicitada via e.pathInfo (ou login.html como padrão)
+    var path = (e && e.pathInfo) ? e.pathInfo : '';
+    path = path.replace(/^\/+/, '').trim();
+    if (!path) {
+      path = 'login.html';
+    }
+
+    // Allowlist restrita das páginas autorizadas
+    var ALLOWLIST = [
+      'login.html',
+      'dashboard.html',
+      'novo-ticket.html',
+      'ticket.html',
+      'trocar-senha.html',
+      'noc.html',
+      'noc-ticket.html',
+      'noc-importar.html',
+      'index.html'
+    ];
+
+    if (ALLOWLIST.indexOf(path) === -1) {
+      return HtmlService.createHtmlOutput(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>404 Não Encontrado</title>' +
+        '<style>body{font-family:Segoe UI,sans-serif;padding:40px;text-align:center;color:#0F172A;}' +
+        'h2{color:#E11D48;}</style></head><body>' +
+        '<h2>404 — Página Não Autorizada</h2>' +
+        '<p>A página solicitada não pertence à allowlist de rotas autorizadas do portal.</p>' +
+        '</body></html>'
+      ).setTitle('404 — Página Não Encontrada');
+    }
+
+    var baseUrl = 'https://srmariola2025.github.io/PortalInoc/';
+    var targetUrl = baseUrl + path;
+
+    var response = UrlFetchApp.fetch(targetUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true
     });
+
+    var statusCode = response.getResponseCode();
+    if (statusCode < 200 || statusCode >= 300) {
+      return HtmlService.createHtmlOutput(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro ao carregar página</title></head><body>' +
+        '<h3>Erro ao carregar página do repositório (' + statusCode + ')</h3>' +
+        '<p>Não foi possível obter ' + path + ' a partir de ' + baseUrl + '</p>' +
+        '</body></html>'
+      ).setTitle('Erro ' + statusCode);
+    }
+
+    var html = response.getContentText('UTF-8');
+
+    // 1. Reescrever caminhos de assets /PortalInoc/ para https://srmariola2025.github.io/PortalInoc/
+    html = html.replace(/\/PortalInoc\//g, baseUrl);
+
+    // 2. Reescrever caminhos relativos de assets (./css/, ./js/, ./assets/) para a URL pública
+    html = html.replace(/(href|src)=["'](?:\.\/)?(css|js|assets)\//g, '$1="' + baseUrl + '$2/');
+    html = html.replace(/from\s+["'](?:\.\/)?(js\/[^"']+)["']/g, 'from \'' + baseUrl + '$1\'');
+    html = html.replace(/['"](?:\.\/)?assets\/([^'"]+)['"]/g, '"' + baseUrl + 'assets/$1"');
+
+    // 3. Inserir <base href="<ScriptApp.getService().getUrl()>/" target="_top"> no head
+    var serviceUrl = '';
+    try {
+      serviceUrl = ScriptApp.getService().getUrl();
+    } catch (_) {}
+
+    if (serviceUrl) {
+      if (serviceUrl.charAt(serviceUrl.length - 1) !== '/') {
+        serviceUrl += '/';
+      }
+      var baseTag = '<base href="' + serviceUrl + '" target="_top">';
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/(<head[^>]*>)/i, '$1\n  ' + baseTag);
+      } else {
+        html = baseTag + '\n' + html;
+      }
+    }
+
+    return HtmlService.createHtmlOutput(html)
+      .setTitle('Portal INOC — MEO International');
+
   } catch (err) {
-    console.error('Erro em doGet: ' + err.toString());
-    return criarRespostaJson({ sucesso: false, erro: err.toString() });
+    console.error('Erro em doGet:', (err && (err.stack || err.message)) || String(err));
+    return HtmlService.createHtmlOutput(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Erro</title></head><body>' +
+      '<h3>Erro interno. Não foi possível carregar o portal. Tente novamente mais tarde.</h3>' +
+      '</body></html>'
+    ).setTitle('Erro');
   }
 }
 
 /**
- * Handler principal para requisições HTTP POST.
- * Todas as operações do portal transitam por este despachante.
+ * Handler para requisições HTTP POST.
+ * DESABILITADO: O portal é servido via HtmlService com chamadas google.script.run.
  */
 function doPost(e) {
+  return criarRespostaJson({
+    sucesso: false,
+    erro: 'Acesso POST HTTP público desabilitado. O portal é servido via HtmlService (google.script.run).'
+  });
+}
+
+/**
+ * Função global chamada a partir do cliente Web App via google.script.run.
+ * Despacha para a rotina privada interna processarApiInterno_ e converte a resposta
+ * TextOutput em um objeto JSON puro.
+ */
+function apiCallFromHtmlService(action, payload, token) {
+  try {
+    var fakeEvent = {
+      postData: {
+        contents: JSON.stringify({
+          action: action,
+          payload: payload || {},
+          token: token || null
+        })
+      }
+    };
+    var textOutput = processarApiInterno_(fakeEvent);
+    if (textOutput && typeof textOutput.getContent === 'function') {
+      return JSON.parse(textOutput.getContent());
+    } else if (typeof textOutput === 'string') {
+      return JSON.parse(textOutput);
+    } else if (textOutput && typeof textOutput === 'object') {
+      return textOutput;
+    }
+    return { sucesso: false, erro: 'Resposta inválida do processador interno.' };
+  } catch (err) {
+    console.error('Erro em apiCallFromHtmlService: ' + err.toString());
+    return {
+      sucesso: false,
+      erro: err.message || err.toString()
+    };
+  }
+}
+
+/**
+ * Processador REST privado interno do portal.
+ * Centraliza validação de sessão, permissões e despacho de ações.
+ */
+function processarApiInterno_(e) {
   try {
     var corpoRequisicao = {};
     if (e && e.postData && e.postData.contents) {
@@ -108,7 +234,7 @@ function doPost(e) {
       });
     }
 
-    console.log('Recebida ação: ' + action);
+    console.log('Recebida ação interna: ' + action);
 
     // ==========================================
     // 1. AÇÕES PÚBLICAS (Não exigem token de sessão)
@@ -181,6 +307,10 @@ function doPost(e) {
       return executarComentarTicket(emailUsuario, payload);
     }
 
+    if (action === 'baixar_anexo') {
+      return executarBaixarAnexo(emailUsuario, isMaster, payload);
+    }
+
     // ==========================================
     // 3. AÇÕES NOC MASTER (Exigem is_master = true)
     // ==========================================
@@ -220,7 +350,7 @@ function doPost(e) {
     });
 
   } catch (erroGeral) {
-    console.error('Falha crítica na execução do doPost: ' + erroGeral.stack || erroGeral.message);
+    console.error('Falha crítica na execução de processarApiInterno_: ' + erroGeral.stack || erroGeral.message);
     return criarRespostaJson({
       sucesso: false,
       erro: erroGeral.message || erroGeral.toString()
@@ -231,6 +361,63 @@ function doPost(e) {
 // ========= SEÇÃO 3: CONTROLADORES DE AÇÕES PÚBLICAS =========
 
 /**
+ * Validador e limitador de taxa de requisições por e-mail utilizando CacheService.
+ * @param {string} prefixo - Chave de identificação da ação (ex: 'rl_login_')
+ * @param {string} email - E-mail alvo
+ * @param {number} maxTentativas - Limite máximo de tentativas na janela
+ * @param {number} janelaSegundos - Tempo de validade do bloqueio em segundos
+ * @returns {{ permitido: boolean, motivo?: string }}
+ */
+function verificarRateLimitCache_(prefixo, email, maxTentativas, janelaSegundos) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (!cache) return { permitido: true };
+    var chaveEmail = prefixo + sanitizarString(email).toLowerCase();
+    var chaveBloqueio = 'lock_' + chaveEmail;
+
+    if (cache.get(chaveBloqueio)) {
+      return {
+        permitido: false,
+        motivo: 'Muitas tentativas para este e-mail. Por segurança, aguarde alguns minutos antes de tentar novamente.'
+      };
+    }
+
+    var tentativasStr = cache.get(chaveEmail);
+    var tentativas = tentativasStr ? parseInt(tentativasStr, 10) : 0;
+    tentativas++;
+
+    if (tentativas > maxTentativas) {
+      cache.put(chaveBloqueio, '1', janelaSegundos);
+      cache.remove(chaveEmail);
+      return {
+        permitido: false,
+        motivo: 'Limite de tentativas excedido para este e-mail. Aguarde alguns minutos.'
+      };
+    }
+
+    cache.put(chaveEmail, tentativas.toString(), janelaSegundos);
+    return { permitido: true };
+  } catch (err) {
+    console.warn('Falha transitória em verificarRateLimitCache_: ' + err.toString());
+    return { permitido: true };
+  }
+}
+
+/**
+ * Limpa o contador de tentativas no CacheService para uma ação bem-sucedida.
+ */
+function limparRateLimitCache_(prefixo, email) {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      var chaveEmail = prefixo + sanitizarString(email).toLowerCase();
+      cache.remove(chaveEmail);
+      cache.remove('lock_' + chaveEmail);
+    }
+  } catch (_) {}
+}
+
+/**
  * Etapa 1 do Login: Valida email e senha com SHA-256, gera OTP e envia por e-mail.
  */
 function executarSolicitarLogin(payload) {
@@ -239,6 +426,12 @@ function executarSolicitarLogin(payload) {
 
   if (!email || !senha) {
     return criarRespostaJson({ sucesso: false, erro: 'Email e senha são obrigatórios.' });
+  }
+
+  // Rate limiting no login por e-mail (máx 5 tentativas por 15 min)
+  var limite = verificarRateLimitCache_('rl_login_', email, 5, 900);
+  if (!limite.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limite.motivo });
   }
 
   var cliente = obterClientePorEmail(email);
@@ -254,6 +447,9 @@ function executarSolicitarLogin(payload) {
   if (cliente.senha_hash !== hashInformado) {
     return criarRespostaJson({ sucesso: false, erro: 'Credenciais inválidas.' });
   }
+
+  // Credenciais válidas: limpa tentativas de login
+  limparRateLimitCache_('rl_login_', email);
 
   var config = obterConfiguracoes();
   var codigoOtp = gerarCodigoOtpNumerico();
@@ -291,6 +487,12 @@ function executarValidarOtp(payload) {
     return criarRespostaJson({ sucesso: false, erro: 'Email e código OTP são obrigatórios.' });
   }
 
+  // Rate limiting nas tentativas de validação de OTP (máx 5 tentativas por 10 min)
+  var limiteOtp = verificarRateLimitCache_('rl_otp_', email, 5, 600);
+  if (!limiteOtp.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limiteOtp.motivo });
+  }
+
   var sheetOtps = getSheet(SHEETS.OTPS);
   var dadosOtps = sheetOtps.getDataRange().getValues();
   var agora = new Date();
@@ -318,6 +520,9 @@ function executarValidarOtp(payload) {
   if (linhaEncontrada === -1) {
     return criarRespostaJson({ sucesso: false, erro: 'Código OTP inválido ou não encontrado.' });
   }
+
+  // OTP validado com sucesso: limpa o contador de tentativas
+  limparRateLimitCache_('rl_otp_', email);
 
   // Marca OTP como utilizado
   sheetOtps.getRange(linhaEncontrada, 5).setValue(true);
@@ -372,6 +577,12 @@ function executarRecuperarSenha(payload) {
   var email = sanitizarString(payload.email).toLowerCase();
   if (!email) {
     return criarRespostaJson({ sucesso: false, erro: 'Informe o e-mail cadastrado.' });
+  }
+
+  // Rate limiting em recuperação de senha (máx 3 tentativas por 15 min)
+  var limiteRecup = verificarRateLimitCache_('rl_recup_', email, 3, 900);
+  if (!limiteRecup.permitido) {
+    return criarRespostaJson({ sucesso: false, erro: limiteRecup.motivo });
   }
 
   var sheetClientes = getSheet(SHEETS.CLIENTES);
@@ -769,6 +980,125 @@ function executarComentarTicket(emailUsuario, payload) {
     anexo_url: anexoUrl,
     mensagem: 'Comentário registrado com sucesso.'
   });
+}
+
+/**
+ * Extrai o ID limpo de um arquivo do Google Drive a partir de ID ou URL.
+ */
+function extrairFileId_(ref) {
+  if (!ref) return '';
+  var str = ref.toString().trim();
+  var match = str.match(/\/d\/([a-zA-Z0-9_-]{15,})/);
+  if (match && match[1]) return match[1];
+  var matchId = str.match(/[?&]id=([a-zA-Z0-9_-]{15,})/);
+  if (matchId && matchId[1]) return matchId[1];
+  if (/^[a-zA-Z0-9_-]{15,}$/.test(str)) return str;
+  return str;
+}
+
+/**
+ * Ação autenticada para download seguro de anexo do ticket.
+ * Valida sessão, ticket, propriedade (cliente dono vs NOC Master),
+ * restringe estritamente aos fileIds referenciados nos comentários do ticket,
+ * rejeita arquivos maiores que 10 MB e devolve { sucesso: true, nome, tipo_mime, base64 }.
+ */
+function executarBaixarAnexo(emailUsuario, isMaster, payload) {
+  var idTicket = sanitizarString(payload.id_ticket);
+  var idArquivoRef = sanitizarString(payload.id_arquivo);
+
+  if (!idTicket || !idArquivoRef) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Parâmetros id_ticket e id_arquivo são obrigatórios.'
+    });
+  }
+
+  var targetFileId = extrairFileId_(idArquivoRef);
+  if (!targetFileId) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Identificador de anexo inválido.'
+    });
+  }
+
+  // 1. Validar ticket e permissão de acesso
+  var ticket = obterTicketPorId(idTicket);
+  if (!ticket) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Ticket ' + idTicket + ' não encontrado.'
+    });
+  }
+
+  if (!isMaster) {
+    var cliente = obterClientePorEmail(emailUsuario);
+    if (!cliente || cliente.id_cliente !== ticket.id_cliente) {
+      return criarRespostaJson({
+        sucesso: false,
+        erro: 'Acesso negado: você não tem permissão para acessar os anexos deste ticket.'
+      });
+    }
+  }
+
+  // 2. Verificar se o fileId está efetivamente referenciado nos comentários do ticket
+  var sheetComentarios = getSheet(SHEETS.COMENTARIOS);
+  var dadosComentarios = sheetComentarios.getDataRange().getValues();
+  var arquivoAutorizado = false;
+
+  for (var i = 1; i < dadosComentarios.length; i++) {
+    var rowTicket = sanitizarString(dadosComentarios[i][1]);
+    if (rowTicket === idTicket) {
+      var anexoCol = sanitizarString(dadosComentarios[i][5]);
+      var msgCol = sanitizarString(dadosComentarios[i][4]);
+      if (anexoCol && (extrairFileId_(anexoCol) === targetFileId || anexoCol.indexOf(targetFileId) > -1)) {
+        arquivoAutorizado = true;
+        break;
+      }
+      if (msgCol && (msgCol.indexOf(targetFileId) > -1 || extrairFileId_(msgCol) === targetFileId)) {
+        arquivoAutorizado = true;
+        break;
+      }
+    }
+  }
+
+  if (!arquivoAutorizado) {
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Arquivo não autorizado ou não pertence aos comentários deste ticket.'
+    });
+  }
+
+  // 3. Obter arquivo do Google Drive, verificar limite de 10 MB e retornar base64
+  try {
+    var arquivoDrive = DriveApp.getFileById(targetFileId);
+    var tamanhoBytes = arquivoDrive.getSize();
+    var limiteMaximoBytes = 10 * 1024 * 1024; // 10 MB
+
+    if (tamanhoBytes > limiteMaximoBytes) {
+      return criarRespostaJson({
+        sucesso: false,
+        erro: 'Arquivo excede o limite máximo permitido de 10 MB.'
+      });
+    }
+
+    var blob = arquivoDrive.getBlob();
+    var base64 = Utilities.base64Encode(blob.getBytes());
+    var nome = arquivoDrive.getName();
+    var mime = arquivoDrive.getMimeType() || blob.getContentType() || 'application/octet-stream';
+
+    return criarRespostaJson({
+      sucesso: true,
+      nome: nome,
+      tipo_mime: mime,
+      base64: base64
+    });
+  } catch (errDrive) {
+    console.error('Erro ao acessar arquivo no Drive: ' + errDrive.toString());
+    return criarRespostaJson({
+      sucesso: false,
+      erro: 'Não foi possível acessar o arquivo no Drive: ' + errDrive.message
+    });
+  }
 }
 
 // ========= SEÇÃO 5: CONTROLADORES NOC MASTER =========
@@ -1758,7 +2088,7 @@ function getSheet(nome) {
 
   var sheet = ss.getSheetByName(nome);
   if (!sheet) {
-    throw new Error('Aba "' + nome + '" não encontrada na planilha. Execute a função criarEstruturaPlanilha() primeiro.');
+    throw new Error('Aba "' + nome + '" não encontrada na planilha. Verifique a existência da aba na planilha vinculada.');
   }
   return sheet;
 }
@@ -2188,6 +2518,8 @@ function obterOuCriarPastaTicket(idTicket) {
 
 /**
  * Converte anexo Base64 em Blob e salva na pasta do Drive correspondente.
+ * CRÍTICO: Não expõe os arquivos publicamente (sem ANYONE_WITH_LINK).
+ * Ficam estritamente privados na conta do proprietário do Drive.
  */
 function salvarAnexoEmDrive(itemBase64, pasta) {
   if (!itemBase64 || !pasta) return null;
@@ -2205,10 +2537,9 @@ function salvarAnexoEmDrive(itemBase64, pasta) {
     var blob = Utilities.newBlob(bytes, mimeType, nomeArquivo);
     var arquivoCriado = pasta.createFile(blob);
 
-    // Ajusta permissão para qualquer pessoa com o link poder visualizar
-    arquivoCriado.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-    return arquivoCriado.getUrl();
+    // REMOVIDO: DriveApp.Access.ANYONE_WITH_LINK para manter os arquivos estritamente privados
+    // Retorna o ID do arquivo criado
+    return arquivoCriado.getId();
   } catch (err) {
     console.error('Erro ao salvar anexo no Drive: ' + err.toString());
     return null;
@@ -2233,17 +2564,22 @@ function atualizarDataModificacaoTicket(idTicket, dataHora) {
   }
 }
 
-// ========= SEÇÃO 9: FUNÇÃO DE SETUP COMPLETO DA PLANILHA =========
+// ========= SEÇÃO 9: AUDITORIA E SEGURANÇA DA PLANILHA =========
 
 /**
- * Executa o provisionamento e estruturação automática das 7 abas do banco de dados no Google Sheets.
- * - Cria as 7 abas se não existirem
- * - Insere cabeçalhos corporativos formatados (#0F172A com texto branco em negrito)
- * - Congela a primeira linha
- * - Insere dados demonstrativos de clientes, NOC e circuitos
- * - Remove a aba padrão ("Página1" ou "Sheet1")
+ * DESATIVADA POR SEGURANÇA: Esta rotina foi permanentemente desativada com sufixo _
+ * para preservar integralmente a estrutura existente, dados operacionais e contas cadastradas.
+ * Nenhuma alteração destrutiva é permitida.
  */
-function criarEstruturaPlanilha() {
+function criarEstruturaPlanilha_() {
+  throw new Error('A função criarEstruturaPlanilha foi permanentemente desativada para proteger os dados de produção e contas da planilha.');
+}
+
+/**
+ * Verificação SOMENTE-LEITURA opcional das abas e cabeçalhos da planilha (não modifica nem apaga nada).
+ * @returns {Object} Relatório de inspeção das abas e contagem de linhas
+ */
+function verificarEstruturaPlanilhaSomenteLeitura_() {
   var ss;
   if (SPREADSHEET_ID && SPREADSHEET_ID.trim() !== '') {
     ss = SpreadsheetApp.openById(SPREADSHEET_ID.trim());
@@ -2252,114 +2588,44 @@ function criarEstruturaPlanilha() {
   }
 
   if (!ss) {
-    throw new Error('Não foi possível identificar a planilha. Certifique-se de vincular o projeto à planilha ou definir SPREADSHEET_ID.');
+    throw new Error('Planilha não encontrada. Verifique o SPREADSHEET_ID.');
   }
 
-  var estiloCabecalho = function(range) {
-    range.setBackground('#0F172A')
-         .setFontColor('#FFFFFF')
-         .setFontWeight('bold')
-         .setFontFamily('Segoe UI')
-         .setHorizontalAlignment('center')
-         .setVerticalAlignment('middle');
+  var abasObrigatorias = [
+    SHEETS.CONFIG,
+    SHEETS.CLIENTES,
+    SHEETS.CIRCUITOS,
+    SHEETS.TICKETS,
+    SHEETS.COMENTARIOS,
+    SHEETS.SESSOES,
+    SHEETS.OTPS
+  ];
+
+  var relatorio = {
+    planilhaId: ss.getId(),
+    planilhaNome: ss.getName(),
+    abasEncontradas: [],
+    abasAusentes: []
   };
 
-  // 1. ABA CONFIG
-  var sheetConfig = ss.getSheetByName(SHEETS.CONFIG) || ss.insertSheet(SHEETS.CONFIG);
-  sheetConfig.clear();
-  var cabecalhoConfig = [['CHAVE', 'VALOR']];
-  sheetConfig.getRange(1, 1, 1, 2).setValues(cabecalhoConfig);
-  estiloCabecalho(sheetConfig.getRange(1, 1, 1, 2));
-  sheetConfig.setFrozenRows(1);
-  sheetConfig.getRange(2, 1, 8, 2).setValues([
-    ['SPREADSHEET_ID', ss.getId()],
-    ['EMAIL_NOC', 'inoc@meo.pt'],
-    ['NOME_EMPRESA', 'Telecom NOC Operations'],
-    ['LOGO_URL', 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=300&q=80'],
-    ['SESSAO_TIMEOUT_MIN', 15],
-    ['OTP_EXPIRA_MIN', 10],
-    ['TIMEZONE', 'America/Sao_Paulo'],
-    ['DRIVE_ROOT_FOLDER', 'PortalTickets']
-  ]);
-  sheetConfig.autoResizeColumns(1, 2);
-
-  // 2. ABA CLIENTES
-  var sheetClientes = ss.getSheetByName(SHEETS.CLIENTES) || ss.insertSheet(SHEETS.CLIENTES);
-  sheetClientes.clear();
-  var cabecalhoClientes = [['id_cliente', 'nome_empresa', 'email_login', 'senha_hash', 'senha_temporaria', 'status', 'data_criacao', 'ultimo_login']];
-  sheetClientes.getRange(1, 1, 1, 8).setValues(cabecalhoClientes);
-  estiloCabecalho(sheetClientes.getRange(1, 1, 1, 8));
-  sheetClientes.setFrozenRows(1);
-
-  var agora = new Date();
-  var hashClienteDemo = hashSenha('Cliente@2026');
-  var hashNocDemo = hashSenha('NocAdmin@2026');
-
-  sheetClientes.getRange(2, 1, 2, 8).setValues([
-    ['CLI-001', 'Acme Telecom Solutions Ltda', 'cliente@exemplo.com', hashClienteDemo, false, 'ATIVO', agora, ''],
-    ['NOC-ADMIN', 'Network Operations Center Team', 'inoc@meo.pt', hashNocDemo, false, 'ATIVO', agora, '']
-  ]);
-  sheetClientes.autoResizeColumns(1, 8);
-
-  // 3. ABA CIRCUITOS
-  var sheetCircuitos = ss.getSheetByName(SHEETS.CIRCUITOS) || ss.insertSheet(SHEETS.CIRCUITOS);
-  sheetCircuitos.clear();
-  var cabecalhoCircuitos = [['id_circuito', 'id_cliente', 'nome_circuito', 'tipo_link', 'identificador_tecnico', 'status']];
-  sheetCircuitos.getRange(1, 1, 1, 6).setValues(cabecalhoCircuitos);
-  estiloCabecalho(sheetCircuitos.getRange(1, 1, 1, 6));
-  sheetCircuitos.setFrozenRows(1);
-  sheetCircuitos.getRange(2, 1, 2, 6).setValues([
-    ['CIRC-SP-001', 'CLI-001', 'Link Fibra Matriz São Paulo (10 Gbps)', 'Fibra', 'VLAN-1004 / IP 200.198.110.45', 'ATIVO'],
-    ['CIRC-RJ-002', 'CLI-001', 'Link Backup Rádio Datacenter RJ (1 Gbps)', 'Radio', 'SSID-BKP-77 / IP 200.198.115.12', 'ATIVO']
-  ]);
-  sheetCircuitos.autoResizeColumns(1, 6);
-
-  // 4. ABA TICKETS
-  var sheetTickets = ss.getSheetByName(SHEETS.TICKETS) || ss.insertSheet(SHEETS.TICKETS);
-  sheetTickets.clear();
-  var cabecalhoTickets = [['id_ticket', 'id_cliente', 'id_circuito', 'tipo_incidente', 'descricao_inicial', 'status', 'data_abertura', 'data_ultima_atualizacao', 'data_pendencia_expira', 'data_fechamento', 'pasta_drive_anexos']];
-  sheetTickets.getRange(1, 1, 1, 11).setValues(cabecalhoTickets);
-  estiloCabecalho(sheetTickets.getRange(1, 1, 1, 11));
-  sheetTickets.setFrozenRows(1);
-  sheetTickets.autoResizeColumns(1, 11);
-
-  // 5. ABA COMENTARIOS
-  var sheetComentarios = ss.getSheetByName(SHEETS.COMENTARIOS) || ss.insertSheet(SHEETS.COMENTARIOS);
-  sheetComentarios.clear();
-  var cabecalhoComentarios = [['id_comentario', 'id_ticket', 'autor_tipo', 'autor_nome', 'mensagem', 'anexo_url', 'data_hora']];
-  sheetComentarios.getRange(1, 1, 1, 7).setValues(cabecalhoComentarios);
-  estiloCabecalho(sheetComentarios.getRange(1, 1, 1, 7));
-  sheetComentarios.setFrozenRows(1);
-  sheetComentarios.autoResizeColumns(1, 7);
-
-  // 6. ABA SESSOES
-  var sheetSessoes = ss.getSheetByName(SHEETS.SESSOES) || ss.insertSheet(SHEETS.SESSOES);
-  sheetSessoes.clear();
-  var cabecalhoSessoes = [['token_sessao', 'email_cliente', 'data_criacao', 'data_expiracao']];
-  sheetSessoes.getRange(1, 1, 1, 4).setValues(cabecalhoSessoes);
-  estiloCabecalho(sheetSessoes.getRange(1, 1, 1, 4));
-  sheetSessoes.setFrozenRows(1);
-  sheetSessoes.autoResizeColumns(1, 4);
-
-  // 7. ABA OTPS
-  var sheetOtps = ss.getSheetByName(SHEETS.OTPS) || ss.insertSheet(SHEETS.OTPS);
-  sheetOtps.clear();
-  var cabecalhoOtps = [['email', 'codigo_otp', 'data_criacao', 'data_expiracao', 'utilizado']];
-  sheetOtps.getRange(1, 1, 1, 5).setValues(cabecalhoOtps);
-  estiloCabecalho(sheetOtps.getRange(1, 1, 1, 5));
-  sheetOtps.setFrozenRows(1);
-  sheetOtps.autoResizeColumns(1, 5);
-
-  // Remove aba padrão inicial caso exista
-  var abaPadraoPt = ss.getSheetByName('Página1');
-  if (abaPadraoPt && ss.getSheets().length > 1) {
-    try { ss.deleteSheet(abaPadraoPt); } catch (_) {}
-  }
-  var abaPadraoEn = ss.getSheetByName('Sheet1');
-  if (abaPadraoEn && ss.getSheets().length > 1) {
-    try { ss.deleteSheet(abaPadraoEn); } catch (_) {}
+  for (var i = 0; i < abasObrigatorias.length; i++) {
+    var nomeAba = abasObrigatorias[i];
+    var sheet = ss.getSheetByName(nomeAba);
+    if (sheet) {
+      var ultimaLinha = sheet.getLastRow();
+      var ultimaColuna = sheet.getLastColumn();
+      var cabecalhos = (ultimaLinha > 0 && ultimaColuna > 0)
+        ? sheet.getRange(1, 1, 1, ultimaColuna).getValues()[0]
+        : [];
+      relatorio.abasEncontradas.push({
+        aba: nomeAba,
+        totalLinhas: ultimaLinha,
+        cabecalhos: cabecalhos
+      });
+    } else {
+      relatorio.abasAusentes.push(nomeAba);
+    }
   }
 
-  console.log('Estrutura de 7 abas criada e configurada com sucesso na planilha ID: ' + ss.getId());
-  return 'Estrutura criada com sucesso na planilha: ' + ss.getName() + ' (ID: ' + ss.getId() + ')';
+  return relatorio;
 }

@@ -2,13 +2,31 @@
 // JS/TICKET.JS — VISUALIZAÇÃO DO TICKET, DETALHES E TIMELINE CRM DO CLIENTE
 // ==========================================================================
 
-import { verTicket, comentarTicket } from './api.js';
+import { verTicket, comentarTicket, baixarAnexo } from './api.js';
 import { mostrarToast, mostrarLoading, esconderLoading, renderizarBadgeStatus, renderizarBadgeTipo, formatarData, escaparHtml } from './utils.js';
 import { t, aplicarTraducoes } from './i18n.js';
 
 let ticketAtual = null;
 let comentariosAtuais = [];
 let anexoRespostaSelecionado = null;
+
+function baixarArquivoLocal(base64, nome, tipoMime) {
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) {
+    byteNumbers[i] = byteChars.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: tipoMime || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome || 'anexo';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 async function converterArquivoParaBase64(arquivo) {
   return new Promise((resolve, reject) => {
@@ -112,16 +130,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <dt>${escaparHtml(t('pending_until'))}</dt>
           <dd style="color: var(--cor-aviso); font-weight: 700;">${formatarData(tkt.data_pendencia_expira)}</dd>
         ` : ''}
-
-        ${tkt.pasta_drive_anexos ? `
-          <dt>${escaparHtml(t('drive_folder'))}</dt>
-          <dd>
-            <a href="${tkt.pasta_drive_anexos}" target="_blank" rel="noopener noreferrer" 
-               class="btn btn-sm btn-outline" style="margin-top: 6px; width: 100%; justify-content: center;">
-              📁 ${escaparHtml(t('view_on_drive'))} &rarr;
-            </a>
-          </dd>
-        ` : ''}
       </dl>
     `;
   }
@@ -153,10 +161,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="bubble-text">${escaparHtml(c.mensagem)}</div>
           ${c.anexo_url ? `
-            <div>
-              <a href="${c.anexo_url}" target="_blank" rel="noopener noreferrer" class="bubble-attachment">
-                📎 ${escaparHtml(t('view'))} &rarr;
-              </a>
+            <div style="margin-top: 6px;">
+              <button type="button" class="btn-baixar-anexo" data-arquivo="${escaparHtml(c.anexo_url)}" style="background: rgba(0,163,224,0.08); border: 1px solid var(--meo-azul); border-radius: 4px; padding: 4px 10px; color: var(--meo-azul); cursor: pointer; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                📎 ${escaparHtml(t('download_attachment') || 'Baixar anexo')}
+              </button>
             </div>
           ` : ''}
         </div>
@@ -166,6 +174,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Rola para a última mensagem automaticamente
     containerTimeline.scrollTop = containerTimeline.scrollHeight;
   }
+
+  // Delegação de evento para download seguro de anexo
+  containerTimeline?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.btn-baixar-anexo');
+    if (!btn) return;
+    const arquivoRef = btn.getAttribute('data-arquivo');
+    if (!arquivoRef) return;
+
+    mostrarLoading(t('loading'));
+    try {
+      const res = await baixarAnexo(idTicket, arquivoRef);
+      if (res && res.base64) {
+        baixarArquivoLocal(res.base64, res.nome, res.tipo_mime);
+        mostrarToast(t('msg_file_downloaded') || 'Download concluído.', 'sucesso');
+      } else {
+        throw new Error('Anexo vazio ou não encontrado.');
+      }
+    } catch (err) {
+      console.error(err);
+      mostrarToast(err.message || 'Erro ao baixar anexo.', 'erro');
+    } finally {
+      esconderLoading();
+    }
+  });
 
   // Gestão de Anexo no Comentário
   inputAnexo?.addEventListener('change', () => {
