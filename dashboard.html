@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="dash_meta_title">My Tickets | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <!-- Header Global Injetado via JS -->
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container">
+      
+      <!-- Topo do Dashboard -->
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">
+            <span data-i18n="dash_title">My Incident Tickets</span>
+            <span id="total-tickets-count" style="font-size: 0.875rem; font-weight: 500; color: var(--cor-texto-claro); background: #E5E7EB; padding: 2px 8px; border-radius: var(--raio-borda-full);" data-i18n="loading">
+              Loading...
+            </span>
+          </h1>
+          <p style="font-size: 0.875rem; color: var(--cor-texto-claro); margin: 4px 0 0 0;" data-i18n="dash_subtitle">
+            Monitor active status and technical progress of your international telecom circuits.
+          </p>
+        </div>
+
+        <div class="page-actions">
+          <a href="./novo-ticket.html" class="btn btn-laranja btn-lg" style="box-shadow: 0 4px 10px rgba(242, 101, 34, 0.3);" data-i18n="dash_btn_new_ticket">
+            + Open New Ticket
+          </a>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros -->
+      <div style="background: #FFFFFF; border: 1px solid var(--cor-borda); border-radius: var(--raio-borda-lg); padding: 14px 18px; margin-bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label for="filtro-status" style="font-size: 0.875rem; font-weight: 600; color: var(--cor-texto); white-space: nowrap;" data-i18n="dash_filter_label">
+            Filter by Status:
+          </label>
+          <select id="filtro-status" class="form-select" style="width: auto; min-width: 180px; padding: 6px 12px; font-size: 0.875rem;">
+            <option value="TODOS" data-i18n="status_todos">All Statuses</option>
+            <option value="ABERTO" data-i18n="status_aberto">Open</option>
+            <option value="EM_RESOLUCAO" data-i18n="status_em_resolucao">In Resolution</option>
+            <option value="PENDENTE" data-i18n="status_pendente">Pending</option>
+            <option value="RESOLVIDO" data-i18n="status_resolvido">Resolved</option>
+          </select>
+        </div>
+
+        <span style="font-size: 0.75rem; color: var(--cor-texto-muted);" data-i18n="dash_realtime_badge">
+          Real-time updates from INOC 24x7 Operations
+        </span>
+      </div>
+
+      <!-- Grid de Cards de Tickets -->
+      <div id="tickets-container" class="tickets-grid">
+        <!-- Inserido dinamicamente via js/dashboard.js -->
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Rodapé Institucional MEO -->
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div>
+        <strong data-i18n="footer_brand">MEO International — INOC (International Network Operations Center)</strong>
+      </div>
+      <div>
+        <span data-i18n="footer_support">24x7 NOC Hotline:</span> <a href="mailto:inoc@meo.pt" style="color: var(--meo-azul-escuro); font-weight: 600;">inoc@meo.pt</a> • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(false); // Rota do cliente
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/dashboard.js"></script>
+</body>
+</html>

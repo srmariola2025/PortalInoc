@@ -1,0 +1,618 @@
+/* ==========================================================================
+   CSS/COMPONENTS.CSS — BOTÕES, CARDS, INPUTS, MODAIS, TOASTS E BADGES
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   BOTÕES
+   -------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacamento-sm);
+  padding: 10px 20px;
+  border-radius: var(--raio-borda);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transicao-padrao);
+  user-select: none;
+  line-height: 1.25;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Primário (Azul MEO) */
+.btn-primary {
+  background-color: var(--meo-azul);
+  color: #FFFFFF;
+  border-color: var(--meo-azul);
+  box-shadow: 0 2px 4px rgba(0, 163, 224, 0.25);
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--meo-azul-escuro);
+  border-color: var(--meo-azul-escuro);
+  text-decoration: none;
+  box-shadow: 0 4px 8px rgba(0, 119, 168, 0.35);
+}
+
+/* Secundário / Destaque de Abertura (Laranja MEO) */
+.btn-secondary, .btn-laranja {
+  background-color: var(--meo-laranja);
+  color: #FFFFFF;
+  border-color: var(--meo-laranja);
+  box-shadow: 0 2px 4px rgba(242, 101, 34, 0.25);
+}
+.btn-secondary:hover:not(:disabled), .btn-laranja:hover:not(:disabled) {
+  background-color: var(--meo-laranja-escuro);
+  border-color: var(--meo-laranja-escuro);
+  text-decoration: none;
+  box-shadow: 0 4px 8px rgba(217, 85, 26, 0.35);
+}
+
+/* Outline */
+.btn-outline {
+  background-color: transparent;
+  color: var(--meo-azul-escuro);
+  border-color: var(--cor-borda-escura);
+}
+.btn-outline:hover:not(:disabled) {
+  background-color: #FFFFFF;
+  border-color: var(--meo-azul);
+  color: var(--meo-azul);
+  text-decoration: none;
+}
+
+.btn-outline-white {
+  background-color: transparent;
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.btn-outline-white:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: #FFFFFF;
+  text-decoration: none;
+}
+
+/* Danger / Alerta */
+.btn-danger {
+  background-color: var(--cor-erro);
+  color: #FFFFFF;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: #DC2626;
+  text-decoration: none;
+}
+
+/* Tamanhos */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+.btn-lg {
+  padding: 14px 28px;
+  font-size: 1.0625rem;
+}
+.btn-block {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   BADGES (STATUS E TIPOS DE INCIDENTE)
+   -------------------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--raio-borda-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* Status */
+.badge-aberto {
+  background-color: var(--badge-aberto-bg);
+  color: var(--badge-aberto-cor);
+  border: 1px solid #BFDBFE;
+}
+.badge-em_resolucao, .badge-em-resolucao {
+  background-color: var(--badge-em-resolucao-bg);
+  color: var(--badge-em-resolucao-cor);
+  border: 1px solid #FDE68A;
+}
+.badge-pendente {
+  background-color: var(--badge-pendente-bg);
+  color: var(--badge-pendente-cor);
+  border: 1px solid #DDD6FE;
+}
+.badge-resolvido {
+  background-color: var(--badge-resolvido-bg);
+  color: var(--badge-resolvido-cor);
+  border: 1px solid #A7F3D0;
+}
+
+/* Tipo de Incidente */
+.badge-corte_total, .badge-corte-total {
+  background-color: var(--badge-corte-total-bg);
+  color: var(--badge-corte-total-cor);
+  border: 1px solid #FECACA;
+}
+.badge-corte_parcial, .badge-corte-parcial {
+  background-color: var(--badge-corte-parcial-bg);
+  color: var(--badge-corte-parcial-cor);
+  border: 1px solid #FED7AA;
+}
+.badge-ensaio {
+  background-color: var(--badge-ensaio-bg);
+  color: var(--badge-ensaio-cor);
+  border: 1px solid #BAE6FD;
+}
+
+/* Genéricos */
+.badge-cinza {
+  background-color: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #E5E7EB;
+}
+.badge-noc {
+  background-color: #0F172A;
+  color: #38BDF8;
+  border: 1px solid #1E293B;
+}
+
+/* --------------------------------------------------------------------------
+   CARDS
+   -------------------------------------------------------------------------- */
+.card {
+  background-color: var(--cor-fundo-card);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-borda-lg);
+  box-shadow: var(--sombra-suave);
+  overflow: hidden;
+  transition: var(--transicao-padrao);
+}
+
+.card:hover {
+  box-shadow: var(--sombra-media);
+}
+
+.card-header {
+  padding: var(--espacamento-md) var(--espacamento-lg);
+  border-bottom: 1px solid var(--cor-borda);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-body {
+  padding: var(--espacamento-lg);
+}
+
+.card-footer {
+  padding: var(--espacamento-md) var(--espacamento-lg);
+  border-top: 1px solid var(--cor-borda);
+  background-color: #FAFAFA;
+}
+
+/* Card de Ticket interativo */
+.ticket-card {
+  cursor: pointer;
+  border-left: 4px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.ticket-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--meo-azul);
+  border-left-color: var(--meo-azul);
+  box-shadow: var(--sombra-grande);
+}
+
+/* --------------------------------------------------------------------------
+   INPUTS E FORMULÁRIOS
+   -------------------------------------------------------------------------- */
+.form-group {
+  margin-bottom: var(--espacamento-md);
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--cor-texto);
+  margin-bottom: 6px;
+}
+
+.form-control, .form-select, .form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--cor-borda-escura);
+  border-radius: var(--raio-borda);
+  background-color: #FFFFFF;
+  color: var(--cor-texto);
+  transition: var(--transicao-padrao);
+}
+
+.form-control:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--meo-azul);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 163, 224, 0.15);
+}
+
+.form-control::placeholder, .form-textarea::placeholder {
+  color: var(--cor-texto-muted);
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--cor-texto-claro);
+  margin-top: 4px;
+}
+
+.form-error {
+  font-size: 0.75rem;
+  color: var(--cor-erro);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Inputs de OTP (6 dígitos estilo banco digital) */
+.otp-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: var(--espacamento-lg) 0;
+}
+
+.otp-digit {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: var(--fonte-mono);
+  border: 2px solid var(--cor-borda-escura);
+  border-radius: var(--raio-borda);
+  background-color: #FFFFFF;
+  color: var(--cor-texto);
+  transition: var(--transicao-padrao);
+}
+
+.otp-digit:focus {
+  border-color: var(--meo-azul);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(0, 163, 224, 0.2);
+  transform: scale(1.05);
+}
+
+/* Password Toggle Container */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-wrapper input {
+  padding-right: 44px;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--cor-texto-claro);
+  cursor: pointer;
+  padding: 6px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.password-toggle-btn:hover {
+  color: var(--meo-azul);
+}
+
+/* --------------------------------------------------------------------------
+   BANNERS E ALERTAS
+   -------------------------------------------------------------------------- */
+.banner {
+  padding: 12px 16px;
+  border-radius: var(--raio-borda);
+  margin-bottom: var(--espacamento-md);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.banner-aviso {
+  background-color: var(--meo-laranja-claro);
+  border-left: 4px solid var(--meo-laranja);
+  color: var(--meo-laranja-escuro);
+}
+.banner-info {
+  background-color: var(--meo-azul-superclaro);
+  border-left: 4px solid var(--meo-azul);
+  color: var(--meo-azul-escuro);
+}
+.banner-erro {
+  background-color: #FEE2E2;
+  border-left: 4px solid var(--cor-erro);
+  color: #991B1B;
+}
+.banner-sucesso {
+  background-color: #D1FAE5;
+  border-left: 4px solid var(--cor-sucesso);
+  color: #065F46;
+}
+
+/* --------------------------------------------------------------------------
+   TOASTS (NOTIFICAÇÕES FLUTUANTES)
+   -------------------------------------------------------------------------- */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 380px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: #FFFFFF;
+  border-radius: var(--raio-borda);
+  box-shadow: var(--sombra-grande);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  border-left: 5px solid transparent;
+  animation: toastEntrada 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast-sucesso { border-left-color: var(--cor-sucesso); }
+.toast-erro { border-left-color: var(--cor-erro); }
+.toast-aviso { border-left-color: var(--meo-laranja); }
+.toast-info { border-left-color: var(--meo-azul); }
+
+.toast-fechar {
+  background: none;
+  border: none;
+  color: var(--cor-texto-claro);
+  cursor: pointer;
+  margin-left: auto;
+  padding: 2px 4px;
+  font-size: 1rem;
+}
+
+@keyframes toastEntrada {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* --------------------------------------------------------------------------
+   LOADING OVERLAY & SPINNER
+   -------------------------------------------------------------------------- */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  color: #FFFFFF;
+  gap: var(--espacamento-md);
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--meo-azul);
+  border-radius: 50%;
+  animation: spinnerGiro 0.8s linear infinite;
+}
+
+.spinner-sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
+
+@keyframes spinnerGiro {
+  to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------------------------------------
+   MODAL DE CONFIRMAÇÃO
+   -------------------------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  padding: 16px;
+}
+
+.modal {
+  background-color: #FFFFFF;
+  border-radius: var(--raio-borda-lg);
+  box-shadow: var(--sombra-grande);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+  animation: modalEntrada 0.25s ease-out forwards;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cor-borda);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-header h3 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.modal-body {
+  padding: 20px;
+  font-size: 0.9375rem;
+  color: var(--cor-texto);
+  line-height: 1.5;
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--cor-borda);
+  background-color: #F9FAFB;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@keyframes modalEntrada {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   SELETOR DE IDIOMA MULTILÍNGUE (EN, PT, ES)
+   -------------------------------------------------------------------------- */
+.lang-switch-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.lang-switch-label {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.lang-switch-buttons {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--raio-borda-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: #FFFFFF;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--raio-borda-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.18s ease-in-out;
+  opacity: 0.85;
+  line-height: 1.2;
+}
+
+.lang-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.lang-btn.active {
+  background-color: #FFFFFF;
+  color: var(--meo-azul-escuro);
+  opacity: 1;
+  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+/* Variação Discreta para Parte de Baixo do Card (Login / Trocar Senha) */
+.lang-switch-discreet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #E2E8F0;
+  width: 100%;
+  font-size: 0.8125rem;
+  user-select: none;
+}
+
+.lang-discreet-icon {
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
+.lang-link-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 0.8125rem;
+  color: var(--cor-texto-claro);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.lang-link-btn:hover {
+  color: var(--meo-azul);
+  text-decoration: underline;
+}
+
+.lang-link-btn.active {
+  color: var(--meo-azul-escuro);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lang-dot {
+  color: #CBD5E1;
+  font-size: 0.625rem;
+  user-select: none;
+}
+
+

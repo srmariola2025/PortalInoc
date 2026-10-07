@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INOC — International Network Operations Center | MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #0077A8 0%, #004D6E 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: #FFFFFF;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <img src="./assets/meo-logo-white.svg" 
+         alt="MEO International" 
+         style="width: 130px; margin: 0 auto 16px auto;" 
+         onerror="this.src='./assets/meo-logo.svg'" />
+    <h1 style="font-size: 1.5rem; margin-bottom: 8px; color: #FFFFFF;" data-i18n="portal_name">INOC Portal</h1>
+    <p style="color: rgba(255,255,255,0.8); font-size: 0.875rem;" data-i18n="loading">Loading incident portal...</p>
+    <div class="spinner" style="margin: 20px auto 0 auto;"></div>
+  </div>
+
+  <script type="module">
+    import { aplicarTraducoes } from './js/i18n.js';
+    aplicarTraducoes();
+
+    const token = localStorage.getItem('token');
+    const isMaster = localStorage.getItem('is_master') === 'true';
+
+    setTimeout(() => {
+      if (token) {
+        if (isMaster) {
+          window.location.href = './noc.html';
+        } else {
+          window.location.href = './dashboard.html';
+        }
+      } else {
+        window.location.href = './login.html';
+      }
+    }, 300);
+  </script>
+</body>
+</html>

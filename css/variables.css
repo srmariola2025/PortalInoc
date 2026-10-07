@@ -1,0 +1,74 @@
+/* ==========================================================================
+   CSS/VARIABLES.CSS — DESIGN TOKENS MEO INTERNACIONAL
+   ========================================================================== */
+
+:root {
+  /* Cores MEO Internacional */
+  --meo-azul: #00A3E0;
+  --meo-azul-escuro: #0077A8;
+  --meo-azul-claro: #4DB8E8;
+  --meo-azul-superclaro: #E6F6FC;
+  --meo-laranja: #F26522;
+  --meo-laranja-escuro: #D9551A;
+  --meo-laranja-claro: #FDEEE6;
+
+  /* Cores de status */
+  --cor-sucesso: #10B981;
+  --cor-erro: #EF4444;
+  --cor-alerta: #F59E0B;
+  --cor-info: #3B82F6;
+  --cor-roxo: #8B5CF6;
+
+  /* Badges de Status dos Tickets */
+  --badge-aberto-bg: #DBEAFE;
+  --badge-aberto-cor: #1E40AF;
+  --badge-em-resolucao-bg: #FEF3C7;
+  --badge-em-resolucao-cor: #92400E;
+  --badge-pendente-bg: #EDE9FE;
+  --badge-pendente-cor: #6D28D9;
+  --badge-resolvido-bg: #D1FAE5;
+  --badge-resolvido-cor: #065F46;
+
+  /* Badges de Tipo de Incidente */
+  --badge-corte-total-bg: #FEE2E2;
+  --badge-corte-total-cor: #DC2626;
+  --badge-corte-parcial-bg: #FFF1EB;
+  --badge-corte-parcial-cor: #F26522;
+  --badge-ensaio-bg: #E0F2FE;
+  --badge-ensaio-cor: #0077A8;
+
+  /* Neutros */
+  --cor-fundo: #F5F7FA;
+  --cor-fundo-card: #FFFFFF;
+  --cor-texto: #1F2937;
+  --cor-texto-claro: #6B7280;
+  --cor-texto-muted: #9CA3AF;
+  --cor-borda: #E5E7EB;
+  --cor-borda-escura: #D1D5DB;
+  --cor-header: #0077A8;
+  --cor-header-borda: #006087;
+
+  /* Tipografia */
+  --fonte-principal: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --fonte-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, 'Courier New', monospace;
+
+  /* Espaçamentos e bordas */
+  --raio-borda-sm: 4px;
+  --raio-borda: 8px;
+  --raio-borda-lg: 12px;
+  --raio-borda-full: 9999px;
+
+  --sombra-suave: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --sombra-media: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --sombra-grande: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  --espacamento-xs: 4px;
+  --espacamento-sm: 8px;
+  --espacamento-md: 16px;
+  --espacamento-lg: 24px;
+  --espacamento-xl: 32px;
+  --espacamento-2xl: 48px;
+
+  /* Transições */
+  --transicao-padrao: all 0.2s ease-in-out;
+}

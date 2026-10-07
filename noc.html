@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="noc_meta_title">NOC Master Console | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container">
+      
+      <!-- Topo do Painel Master -->
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">
+            <span class="badge badge-noc" style="font-size: 0.8125rem;">🛡️ INOC MASTER</span>
+            <span data-i18n="noc_title">INOC Master Operations Console</span>
+          </h1>
+          <p style="font-size: 0.875rem; color: var(--cor-texto-claro); margin: 4px 0 0 0;" data-i18n="noc_subtitle">
+            Global management of international telecom incidents, SLA monitoring, and technical dispatches.
+          </p>
+        </div>
+
+        <div class="page-actions">
+          <a href="./noc-importar.html" class="btn btn-outline" style="background:#FFF;" data-i18n="noc_btn_import_csv">
+            📂 Bulk CSV Import
+          </a>
+          <button id="btn-atualizar-filtros" class="btn btn-primary" data-i18n="noc_btn_refresh">
+            🔄 Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros Master (4 colunas) -->
+      <div class="filter-bar">
+        <!-- 1. Status -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="filtro-status" class="form-label" data-i18n="dash_filter_label">Status do Ticket</label>
+          <select id="filtro-status" class="form-select">
+            <option value="TODOS" data-i18n="status_todos">All Statuses</option>
+            <option value="ABERTO" data-i18n="status_aberto">Open</option>
+            <option value="EM_RESOLUCAO" data-i18n="status_em_resolucao">In Resolution</option>
+            <option value="PENDENTE" data-i18n="status_pendente">Pending</option>
+            <option value="RESOLVIDO" data-i18n="status_resolvido">Resolved</option>
+          </select>
+        </div>
+
+        <!-- 2. Cliente B2B -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="filtro-cliente" class="form-label" data-i18n="noc_filter_client">Filter by Client:</label>
+          <select id="filtro-cliente" class="form-select">
+            <option value="TODOS" data-i18n="noc_filter_all_clients">All Clients</option>
+          </select>
+        </div>
+
+        <!-- 3. Tipo de Incidente -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="filtro-tipo" class="form-label" data-i18n="noc_filter_type">Incident Type:</label>
+          <select id="filtro-tipo" class="form-select">
+            <option value="TODOS" data-i18n="noc_filter_all_types">All Types</option>
+            <option value="CORTE_TOTAL" data-i18n="type_corte_total">Total Outage</option>
+            <option value="CORTE_PARCIAL" data-i18n="type_corte_parcial">Partial Outage</option>
+            <option value="ENSAIO" data-i18n="type_ensaio">Testing</option>
+          </select>
+        </div>
+
+        <!-- 4. Período De/Até -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" data-i18n="date">Date Range</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="date" id="filtro-data-de" class="form-control" style="padding: 6px;" title="Start date" />
+            <input type="date" id="filtro-data-ate" class="form-control" style="padding: 6px;" title="End date" />
+          </div>
+        </div>
+
+        <!-- Botão Limpar / Contador -->
+        <div style="display: flex; align-items: center; justify-content: flex-end; padding-top: 18px;">
+          <span id="total-registros-count" style="font-size: 0.8125rem; font-weight: 700; color: var(--meo-azul-escuro);">
+            0
+          </span>
+        </div>
+      </div>
+
+      <!-- Tabela Responsiva de Tickets (DataTable) -->
+      <div class="datatable-wrapper">
+        <table class="datatable">
+          <thead>
+            <tr>
+              <th data-i18n="noc_table_id">Ticket ID</th>
+              <th data-i18n="noc_table_client">Client</th>
+              <th data-i18n="noc_table_circuit">Circuit & Tech ID</th>
+              <th data-i18n="noc_table_type">Incident</th>
+              <th data-i18n="noc_table_status">Status</th>
+              <th data-i18n="created_at">Opened at</th>
+              <th data-i18n="updated_at">Last Update</th>
+              <th style="text-align: center;" data-i18n="comments">Comments</th>
+              <th style="text-align: right;" data-i18n="noc_table_actions">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-tickets">
+            <!-- Renderizado via js/noc.js -->
+          </tbody>
+        </table>
+
+        <!-- Paginação -->
+        <div class="pagination">
+          <span id="paginacao-info">...</span>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-pag-anterior" class="btn btn-sm btn-outline" disabled>
+              &larr; Prev
+            </button>
+            <button id="btn-pag-proxima" class="btn btn-sm btn-outline" disabled>
+              Next &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div><strong data-i18n="footer_brand">MEO International — INOC Master Operations Console</strong></div>
+      <div><span data-i18n="footer_support">24x7 NOC Hotline:</span> inoc@meo.pt • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(true); // Exige is_master = true
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/noc.js"></script>
+</body>
+</html>

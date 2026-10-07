@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="pwchange_title">New Password Required | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body class="login-page">
+
+  <main class="login-card" style="max-width: 480px;">
+    <img src="./assets/meo-logo.svg" 
+         alt="MEO Logo" 
+         class="login-logo" 
+         onerror="this.src='./assets/meo-logo-white.svg'" />
+
+    <div class="banner banner-aviso" style="text-align: left; margin-bottom: 20px;">
+      <span style="font-size: 1.25rem;">🔒</span>
+      <div>
+        <strong style="display: block; font-size: 0.875rem;" data-i18n="pwchange_title">New Password Required</strong>
+        <span style="font-size: 0.75rem;" data-i18n="pwchange_subtitle">Temporary password detected. For your security, define a new password before continuing.</span>
+      </div>
+    </div>
+
+    <form id="form-trocar-senha" novalidate style="text-align: left;">
+      <div class="form-group">
+        <label for="senha-temporaria" class="form-label" data-i18n="pwchange_label_current">Temporary / Current Password</label>
+        <input type="password" id="senha-temporaria" class="form-control" placeholder="••••••••" required />
+      </div>
+
+      <div class="form-group">
+        <label for="nova-senha" class="form-label" data-i18n="pwchange_label_new">New Password</label>
+        <input type="password" id="nova-senha" class="form-control" data-i18n-placeholder="pwchange_placeholder_new" placeholder="Minimum 8 characters" required />
+        <span class="form-hint" data-i18n="pwchange_rules">Password must have at least 8 characters, combining uppercase/lowercase letters and numbers.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmar-senha" class="form-label" data-i18n="pwchange_label_confirm">Confirm New Password</label>
+        <input type="password" id="confirmar-senha" class="form-control" data-i18n-placeholder="pwchange_placeholder_confirm" placeholder="Repeat new password" required />
+      </div>
+
+      <button type="submit" id="btn-salvar-senha" class="btn btn-primary btn-block btn-lg" style="margin-top: 16px;" data-i18n="pwchange_btn_submit">
+        Update Password & Continue
+      </button>
+
+      <button type="button" id="btn-cancelar-troca" class="btn btn-outline btn-block" style="margin-top: 8px;" data-i18n="pwchange_btn_cancel">
+        Cancel & Sign Out
+      </button>
+    </form>
+
+    <!-- Seletor de Idioma Discreto na Parte de Baixo -->
+    <div id="pwchange-lang-container"></div>
+  </main>
+
+  <p class="login-footer-copy">
+    &copy; 2026 MEO Internacional — <span data-i18n="portal_title_full">Incident Ticket Management Portal</span>
+  </p>
+
+  <script type="module">
+    import { trocarSenhaTemporaria } from './js/api.js';
+    import { logout } from './js/auth.js';
+    import { mostrarToast, mostrarLoading, esconderLoading } from './js/utils.js';
+    import { t, gerarHtmlSeletorIdioma, aplicarTraducoes } from './js/i18n.js';
+
+    // Injeta o seletor de idioma
+    const langContainer = document.getElementById('pwchange-lang-container');
+    if (langContainer) {
+      langContainer.innerHTML = gerarHtmlSeletorIdioma('card');
+    }
+    aplicarTraducoes();
+
+    window.addEventListener('inoc_language_changed', () => {
+      aplicarTraducoes();
+      if (langContainer) {
+        langContainer.innerHTML = gerarHtmlSeletorIdioma('card');
+      }
+    });
+
+    // Se o usuário não tiver token de sessão temporária, vai para login
+    if (!localStorage.getItem('token')) {
+      window.location.href = './login.html';
+    }
+
+    const email = localStorage.getItem('email');
+    const form = document.getElementById('form-trocar-senha');
+    const inputTemp = document.getElementById('senha-temporaria');
+    const inputNova = document.getElementById('nova-senha');
+    const inputConf = document.getElementById('confirmar-senha');
+
+    document.getElementById('btn-cancelar-troca')?.addEventListener('click', () => {
+      logout();
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const temp = inputTemp.value;
+      const nova = inputNova.value;
+      const conf = inputConf.value;
+
+      if (!temp || !nova || !conf) {
+        mostrarToast(t('msg_fill_all_fields'), 'aviso');
+        return;
+      }
+
+      if (nova !== conf) {
+        mostrarToast(t('msg_password_mismatch'), 'erro');
+        inputConf.focus();
+        return;
+      }
+
+      if (nova.length < 8) {
+        mostrarToast(t('msg_password_too_short'), 'erro');
+        inputNova.focus();
+        return;
+      }
+
+      mostrarLoading(t('processing'));
+      try {
+        await trocarSenhaTemporaria(email, temp, nova);
+
+        localStorage.setItem('senha_temporaria', 'false');
+        mostrarToast(t('msg_password_changed'), 'sucesso');
+
+        setTimeout(() => {
+          const isMaster = localStorage.getItem('is_master') === 'true';
+          window.location.href = isMaster ? './noc.html' : './dashboard.html';
+        }, 1200);
+
+      } catch (err) {
+        console.error(err);
+        mostrarToast(err.message || t('msg_error_generic'), 'erro');
+      } finally {
+        esconderLoading();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="ticket_meta_title">Incident Details | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container">
+      
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb navigation">
+        <a href="./dashboard.html" data-i18n="ticket_breadcrumb_dash">Dashboard</a>
+        <span class="breadcrumb-separator">/</span>
+        <span>Ticket <span id="breadcrumb-ticket-id" style="font-family: var(--fonte-mono); font-weight: 700;"></span></span>
+      </nav>
+
+      <!-- Banner de Resolução (se encerrado) -->
+      <div id="banner-resolvido" class="banner banner-aviso" style="display: none; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <div>
+            <strong data-i18n="ticket_resolved_banner_title">Ticket Resolved</strong>
+            <p style="font-size: 0.8125rem; margin: 2px 0 0 0;" data-i18n="ticket_resolved_banner_desc">
+              This ticket has been marked as RESOLVED by the INOC team. Comments and additions are now closed.
+            </p>
+          </div>
+        </div>
+        <a href="./novo-ticket.html" class="btn btn-sm btn-secondary" style="white-space: nowrap;" data-i18n="dash_btn_new_ticket">
+          + Open New
+        </a>
+      </div>
+
+      <!-- Layout em duas colunas: Metadados à esquerda e Linha do Tempo à direita -->
+      <div class="ticket-detail-grid">
+        
+        <!-- Coluna Esquerda: Metadados do Ticket -->
+        <aside>
+          <div class="card">
+            <div class="card-body" id="ticket-meta-container">
+              <!-- Preenchido via js/ticket.js -->
+              <p style="color: var(--cor-texto-claro); font-size: 0.875rem;" data-i18n="loading">Loading details...</p>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Coluna Direita: Linha do Tempo CRM e Envio de Mensagens -->
+        <section style="display: flex; flex-direction: column;">
+          
+          <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="card-header">
+              <h2 style="font-size: 1.0625rem; font-weight: 700; color: var(--cor-texto); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span data-i18n="ticket_section_timeline">💬 Technical Resolution Timeline & Communications</span>
+              </h2>
+              <span style="font-size: 0.75rem; color: var(--cor-texto-muted);" data-i18n="dash_realtime_badge">
+                Real-time updates from INOC 24x7 Operations
+              </span>
+            </div>
+
+            <!-- Área de Mensagens / Timeline WhatsApp/CRM -->
+            <div class="card-body" style="padding: 16px; flex: 1;">
+              <div id="timeline-container" class="timeline-container" aria-live="polite">
+                <!-- Comentários renderizados via js/ticket.js -->
+              </div>
+
+              <!-- Caixa de Resposta (Aparece se não estiver RESOLVIDO) -->
+              <div id="reply-box" class="timeline-reply-box" style="display: none;">
+                <form id="form-comentario" novalidate>
+                  <label for="comentario-mensagem" style="display: block; font-size: 0.8125rem; font-weight: 600; color: var(--cor-texto); margin-bottom: 6px;" data-i18n="ticket_comment_box_title">
+                    Send Technical Update / Information:
+                  </label>
+                  <textarea id="comentario-mensagem" class="form-textarea" rows="3"
+                            data-i18n-placeholder="ticket_comment_placeholder"
+                            placeholder="Add technical remarks, loop test results, or feedback for INOC engineers..." required></textarea>
+
+                  <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <label for="comentario-anexo" class="btn btn-sm btn-outline" style="cursor: pointer;" title="Attach file up to 10MB">
+                        📎 <span data-i18n="ticket_comment_attach_btn">Attach file</span>
+                      </label>
+                      <input type="file" id="comentario-anexo" accept="image/*,.pdf,.log,.txt" style="display: none;" />
+                      <span id="label-anexo-nome" style="font-size: 0.75rem; color: var(--meo-azul-escuro); font-weight: 500;"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="btn-enviar-comentario" data-i18n="ticket_comment_submit_btn">
+                      Send Update
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div><strong data-i18n="footer_brand">MEO International — INOC (International Network Operations Center)</strong></div>
+      <div><span data-i18n="footer_support">24x7 NOC Hotline:</span> inoc@meo.pt • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(false);
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/ticket.js"></script>
+</body>
+</html>

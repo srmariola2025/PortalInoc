@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="import_meta_title">CSV Import | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container" style="max-width: 900px;">
+      
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb navigation">
+        <a href="./noc.html" data-i18n="btn_noc_panel">NOC Panel</a>
+        <span class="breadcrumb-separator">/</span>
+        <span data-i18n="noc_btn_import_csv">Batch CSV Import</span>
+      </nav>
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" data-i18n="import_title">Bulk Import: Clients & Circuits</h1>
+          <p style="font-size: 0.875rem; color: var(--cor-texto-claro); margin: 4px 0 0 0;" data-i18n="import_subtitle">
+            Populate the Google Sheets database in batches using standard CSV templates.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          
+          <!-- Abas de Tipo de Importação -->
+          <div class="tabs-nav">
+            <button type="button" class="tab-btn active" id="tab-clientes" data-i18n="import_tab_clients">
+              👥 Import Clients
+            </button>
+            <button type="button" class="tab-btn" id="tab-circuitos" data-i18n="import_tab_circuits">
+              🌐 Import Circuits
+            </button>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <span style="font-size: 0.875rem; font-weight: 600; color: var(--cor-texto);">
+              <span id="nome-tipo-label" style="color: var(--meo-azul-escuro);">Clients</span>
+            </span>
+            <button type="button" id="btn-download-template" class="btn btn-sm btn-outline" data-i18n="import_btn_download_template">
+              📥 Download CSV Template
+            </button>
+          </div>
+
+          <!-- Drag and Drop Dropzone -->
+          <div id="csv-dropzone" class="upload-dropzone" style="padding: 36px 20px;">
+            <input type="file" id="input-csv-file" accept=".csv,.txt" style="display: none;" />
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">📊</div>
+            <strong style="font-size: 0.9375rem; color: var(--meo-azul); display: block; margin-bottom: 4px;" data-i18n="import_dropzone_text">
+              Drop CSV file here or click to browse
+            </strong>
+            <span style="font-size: 0.8125rem; color: var(--cor-texto-claro);">
+              UTF-8 • Semicolon delimiter (;)
+            </span>
+          </div>
+
+          <!-- Pré-visualização das Primeiras 5 Linhas -->
+          <div id="csv-preview-container" style="display: none; margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 0.875rem; color: var(--cor-texto);">
+                CSV Data Preview:
+              </strong>
+              <span style="font-size: 0.75rem; color: var(--cor-texto-muted);">
+                Verify matching column headers
+              </span>
+            </div>
+
+            <div class="csv-preview-table-container">
+              <table class="datatable" style="font-size: 0.8125rem;">
+                <thead id="csv-preview-thead"></thead>
+                <tbody id="csv-preview-tbody"></tbody>
+              </table>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+              <a href="./noc.html" class="btn btn-outline" data-i18n="back">Back</a>
+              <button type="button" id="btn-confirmar-importacao" class="btn btn-primary btn-lg" disabled data-i18n="import_btn_process">
+                Process and Upload to Google Sheets
+              </button>
+            </div>
+          </div>
+
+          <!-- Card de Resultados da Importação -->
+          <div id="import-resultado-card" style="display: none; margin-top: 24px; padding: 16px; background-color: #F8FAFC; border: 1px solid var(--cor-borda); border-radius: var(--raio-borda);">
+            <!-- Preenchido via js/noc-importar.js -->
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div><strong data-i18n="footer_brand">MEO International — INOC Master Operations Console</strong></div>
+      <div><span data-i18n="footer_support">24x7 NOC Hotline:</span> inoc@meo.pt • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(true);
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/noc-importar.js"></script>
+</body>
+</html>

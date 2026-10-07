@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="new_ticket_meta_title">Open Ticket | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container" style="max-width: 860px;">
+      
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb navigation">
+        <a href="./dashboard.html" data-i18n="ticket_breadcrumb_dash">Dashboard</a>
+        <span class="breadcrumb-separator">/</span>
+        <span data-i18n="new_ticket_title">Open Incident Ticket</span>
+      </nav>
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title" data-i18n="new_ticket_title">Open Incident Ticket</h1>
+          <p style="font-size: 0.875rem; color: var(--cor-texto-claro); margin: 4px 0 0 0;" data-i18n="new_ticket_subtitle">
+            Report a link failure, degradation, or request joint testing on your telecom circuit.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <form id="form-novo-ticket" novalidate>
+            
+            <!-- 1. Circuito Afetado -->
+            <div class="form-group">
+              <label for="select-circuito" class="form-label">
+                <span data-i18n="new_ticket_step_circuit">1. Select Affected Circuit</span> <span style="color: var(--cor-erro);">*</span>
+              </label>
+              <select id="select-circuito" class="form-select" required>
+                <option value="" data-i18n="loading">Loading...</option>
+              </select>
+            </div>
+
+            <!-- 2. Tipo de Incidente -->
+            <div class="form-group" style="margin-top: 24px;">
+              <label class="form-label">
+                <span data-i18n="new_ticket_step_type">2. Incident Classification</span> <span style="color: var(--cor-erro);">*</span>
+              </label>
+
+              <div class="incident-types-grid">
+                <!-- Corte Total -->
+                <label class="incident-type-option selected" for="tipo-corte-total">
+                  <input type="radio" id="tipo-corte-total" name="tipo_incidente" value="CORTE_TOTAL" checked />
+                  <span style="font-size: 1.25rem;">🚨</span>
+                  <strong style="color: var(--badge-corte-total-cor); font-size: 0.9375rem;" data-i18n="type_corte_total">Total Outage</strong>
+                  <span style="font-size: 0.75rem; color: var(--cor-texto-claro);" data-i18n="type_corte_total_desc">
+                    Complete loss of link, LOS alarms, zero traffic on primary/backup circuit.
+                  </span>
+                </label>
+
+                <!-- Corte Parcial -->
+                <label class="incident-type-option" for="tipo-corte-parcial">
+                  <input type="radio" id="tipo-corte-parcial" name="tipo_incidente" value="CORTE_PARCIAL" />
+                  <span style="font-size: 1.25rem;">⚠️</span>
+                  <strong style="color: var(--meo-laranja); font-size: 0.9375rem;" data-i18n="type_corte_parcial">Partial Outage / Degradation</strong>
+                  <span style="font-size: 0.75rem; color: var(--cor-texto-claro);" data-i18n="type_corte_parcial_desc">
+                    Packet loss, high latency, intermittent drops or jitter on international link.
+                  </span>
+                </label>
+
+                <!-- Ensaio -->
+                <label class="incident-type-option" for="tipo-ensaio">
+                  <input type="radio" id="tipo-ensaio" name="tipo_incidente" value="ENSAIO" />
+                  <span style="font-size: 1.25rem;">🔬</span>
+                  <strong style="color: var(--meo-azul); font-size: 0.9375rem;" data-i18n="type_ensaio">Joint Testing / Loopback</strong>
+                  <span style="font-size: 0.75rem; color: var(--cor-texto-claro);" data-i18n="type_ensaio_desc">
+                    Scheduled loop testing, BERT test, route validation or joint NOC-client tests.
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 3. Descrição Inicial -->
+            <div class="form-group" style="margin-top: 24px;">
+              <label for="textarea-descricao" class="form-label">
+                <span data-i18n="new_ticket_step_desc">3. Technical Description</span> <span style="color: var(--cor-erro);">*</span>
+              </label>
+              <textarea id="textarea-descricao" class="form-textarea" rows="5" maxlength="2000"
+                        data-i18n-placeholder="new_ticket_desc_placeholder"
+                        placeholder="Describe observed symptoms, timestamp of outage, interface alarms (LOS, CRC), local troubleshooting performed..."
+                        required></textarea>
+              <div class="char-counter" id="char-counter">0 / 2000</div>
+            </div>
+
+            <!-- 4. Upload de Anexos -->
+            <div class="form-group" style="margin-top: 24px;">
+              <label class="form-label" data-i18n="new_ticket_step_files">4. Attachments (Optional)</label>
+              <div id="upload-dropzone" class="upload-dropzone">
+                <input type="file" id="input-arquivos" multiple accept="image/*,.pdf,.log,.txt" style="display: none;" />
+                <div style="font-size: 1.8rem; margin-bottom: 6px;">📂</div>
+                <strong style="color: var(--meo-azul); font-size: 0.875rem; display: block; margin-bottom: 2px;" data-i18n="new_ticket_dropzone_text">
+                  Drag & drop logs, traceroutes or alarm screenshots here, or click to browse
+                </strong>
+                <span style="font-size: 0.75rem; color: var(--cor-texto-muted);" data-i18n="new_ticket_dropzone_hint">
+                  Supported: PDF, PNG, JPG, TXT, LOG (Max 10MB each)
+                </span>
+              </div>
+
+              <!-- Lista de Previews -->
+              <div id="lista-previews" class="upload-previews-list"></div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--cor-borda); display: flex; justify-content: flex-end; gap: 12px;">
+              <a href="./dashboard.html" class="btn btn-outline" data-i18n="cancel">
+                Cancel
+              </a>
+              <button type="submit" id="btn-submit-ticket" class="btn btn-laranja btn-lg" data-i18n="new_ticket_btn_submit">
+                Submit Incident Ticket
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div><strong data-i18n="footer_brand">MEO International — INOC (International Network Operations Center)</strong></div>
+      <div><span data-i18n="footer_support">24x7 NOC Hotline:</span> inoc@meo.pt • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(false);
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/novo-ticket.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "NOC Telecom - Portal de Incidentes Backend & API Hub",
+  "description": "Backend completo em Google Apps Script, banco de dados Google Sheets e API REST para portal de tickets de telecomunicações B2B e NOC.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

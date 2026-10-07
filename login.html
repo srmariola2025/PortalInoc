@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="login_meta_title">Login | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body class="login-page">
+
+  <main class="login-card">
+    <!-- Logo Oficial MEO -->
+    <img src="./assets/meo-logo.svg" 
+         alt="MEO Logo" 
+         class="login-logo" 
+         onerror="this.src='./assets/meo-logo-white.svg'" />
+
+    <h1 style="font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; color: var(--meo-azul); text-transform: uppercase; margin-bottom: 2px;" data-i18n="portal_fullname">
+      International Network Operations Center
+    </h1>
+    <p class="login-subtitle" data-i18n="login_card_subtitle">Incident Portal — MEO International</p>
+
+    <!-- ================= ESTADO 1: LOGIN INICIAL ================= -->
+    <div id="state-login" class="login-state active">
+      <form id="form-login" novalidate>
+        <div class="form-group">
+          <label for="login-email" class="form-label" data-i18n="login_label_email">Corporate Email</label>
+          <input type="email" id="login-email" class="form-control" data-i18n-placeholder="login_placeholder_email" placeholder="client@company.com" required autocomplete="email" />
+        </div>
+
+        <div class="form-group">
+          <label for="login-senha" class="form-label" data-i18n="login_label_password">Password</label>
+          <div class="password-wrapper">
+            <input type="password" id="login-senha" class="form-control" data-i18n-placeholder="login_placeholder_password" placeholder="••••••••" required autocomplete="current-password" />
+            <button type="button" id="btn-toggle-senha" class="password-toggle-btn" aria-label="Toggle password">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-entrar" class="btn btn-primary btn-block btn-lg" style="margin-top: 10px;" data-i18n="login_btn_submit">
+          Sign In
+        </button>
+      </form>
+
+      <div class="login-links">
+        <button type="button" id="btn-ir-recuperar" style="background:none; border:none; color:var(--meo-azul); cursor:pointer; font-size:0.8125rem;" data-i18n="login_forgot_password">
+          Forgot my password
+        </button>
+        <span style="font-size: 0.75rem; color: var(--cor-texto-muted);" data-i18n="login_badge_2fa">Secure 2FA Access</span>
+      </div>
+    </div>
+
+    <!-- ================= ESTADO 2: VALIDAÇÃO OTP 6 DÍGITOS ================= -->
+    <div id="state-otp" class="login-state">
+      <div style="background: var(--meo-azul-superclaro); border: 1px solid var(--meo-azul-claro); border-radius: var(--raio-borda); padding: 12px; margin-bottom: 16px;">
+        <span style="font-size: 1.25rem; display: block; margin-bottom: 4px;">🔐</span>
+        <strong style="color: var(--meo-azul-escuro); font-size: 0.875rem;" data-i18n="login_otp_title">Two-Factor Authentication (2FA)</strong>
+        <p style="font-size: 0.8125rem; color: var(--cor-texto); margin: 4px 0 0 0;" id="otp-instruction-text">
+          <span data-i18n="login_otp_msg">A 6-digit security OTP code was sent to your email. Enter the code below to complete sign in.</span>
+          <br><strong id="otp-email-destino" style="word-break: break-all;"></strong>
+        </p>
+      </div>
+
+      <form id="form-otp" novalidate>
+        <div class="otp-container">
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-1" autofocus />
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-2" />
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-3" />
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-4" />
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-5" />
+          <input type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" class="otp-digit" id="otp-6" />
+        </div>
+
+        <button type="submit" id="btn-validar-otp" class="btn btn-primary btn-block btn-lg" data-i18n="login_otp_btn_verify">
+          Verify OTP & Continue
+        </button>
+      </form>
+
+      <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 0.8125rem;">
+        <button type="button" id="btn-reenviar-otp" disabled style="background:none; border:none; color:var(--cor-texto-claro); cursor:not-allowed;">
+          <span id="btn-reenviar-label">Resend code</span> (<span id="countdown-reenvio">60</span>s)
+        </button>
+        <button type="button" id="btn-voltar-login" style="background:none; border:none; color:var(--meo-azul); cursor:pointer;" data-i18n="login_otp_back_login">
+          &larr; Back to login
+        </button>
+      </div>
+    </div>
+
+    <!-- ================= ESTADO 3: RECUPERAÇÃO DE SENHA ================= -->
+    <div id="state-recuperar" class="login-state">
+      <h3 style="font-size: 1rem; color: var(--cor-texto); margin-bottom: 6px;" data-i18n="login_recup_title">Password Recovery</h3>
+      <p style="font-size: 0.8125rem; color: var(--cor-texto-claro); margin-bottom: 16px;" data-i18n="login_recup_desc">
+        Enter your registered corporate email to receive a temporary access password.
+      </p>
+
+      <form id="form-recuperar" novalidate>
+        <div class="form-group">
+          <label for="recuperar-email" class="form-label" data-i18n="login_label_email">Corporate Email</label>
+          <input type="email" id="recuperar-email" class="form-control" data-i18n-placeholder="login_placeholder_email" placeholder="client@company.com" required />
+        </div>
+
+        <button type="submit" id="btn-enviar-recuperacao" class="btn btn-primary btn-block" data-i18n="login_recup_btn_submit">
+          Send Temporary Password
+        </button>
+      </form>
+
+      <div style="margin-top: 16px;">
+        <button type="button" id="btn-voltar-de-recuperar" style="background:none; border:none; color:var(--meo-azul); cursor:pointer; font-size:0.8125rem;" data-i18n="login_recup_back">
+          &larr; Back to sign in
+        </button>
+      </div>
+    </div>
+
+    <!-- Seletor de Idioma Discreto na Parte de Baixo do Card -->
+    <div id="login-lang-container"></div>
+  </main>
+
+  <p class="login-footer-copy">
+    &copy; 2026 MEO Internacional — <span data-i18n="footer_copyright">All rights reserved</span> • <span data-i18n="footer_support">24x7 NOC Hotline:</span> <a href="mailto:inoc@meo.pt" style="color:#FFF; text-decoration:underline;">inoc@meo.pt</a>
+  </p>
+
+  <script type="module">
+    import { solicitarLogin, validarOTP, recuperarSenha } from './js/api.js';
+    import { salvarSessao } from './js/auth.js';
+    import { verificarJaAutenticado } from './js/router.js';
+    import { mostrarToast, mostrarLoading, esconderLoading } from './js/utils.js';
+    import { t, gerarHtmlSeletorIdioma, aplicarTraducoes } from './js/i18n.js';
+
+    // Monta o seletor de idioma no topo do card
+    const langContainer = document.getElementById('login-lang-container');
+    if (langContainer) {
+      langContainer.innerHTML = gerarHtmlSeletorIdioma('card');
+    }
+    aplicarTraducoes();
+
+    window.addEventListener('inoc_language_changed', () => {
+      aplicarTraducoes();
+      if (langContainer) {
+        langContainer.innerHTML = gerarHtmlSeletorIdioma('card');
+      }
+      atualizarLabelCountdown();
+    });
+
+    // Se já estiver logado, redireciona
+    verificarJaAutenticado();
+
+    const stateLogin = document.getElementById('state-login');
+    const stateOtp = document.getElementById('state-otp');
+    const stateRecuperar = document.getElementById('state-recuperar');
+
+    const formLogin = document.getElementById('form-login');
+    const inputEmail = document.getElementById('login-email');
+    const inputSenha = document.getElementById('login-senha');
+    const btnToggleSenha = document.getElementById('btn-toggle-senha');
+
+    const formOtp = document.getElementById('form-otp');
+    const otpDigits = [
+      document.getElementById('otp-1'),
+      document.getElementById('otp-2'),
+      document.getElementById('otp-3'),
+      document.getElementById('otp-4'),
+      document.getElementById('otp-5'),
+      document.getElementById('otp-6')
+    ];
+    const otpEmailDestino = document.getElementById('otp-email-destino');
+    const btnReenviarOtp = document.getElementById('btn-reenviar-otp');
+    const btnReenviarLabel = document.getElementById('btn-reenviar-label');
+    const countdownEl = document.getElementById('countdown-reenvio');
+
+    const formRecuperar = document.getElementById('form-recuperar');
+    const inputRecuperarEmail = document.getElementById('recuperar-email');
+
+    let emailEmAutenticacao = '';
+    let countdownInterval = null;
+    let countdownSegundos = 60;
+
+    // Se havia mensagem de logout forçado no sessionStorage, exibe
+    const msgExpirada = sessionStorage.getItem('msg_expirada');
+    if (msgExpirada) {
+      sessionStorage.removeItem('msg_expirada');
+      mostrarToast(msgExpirada, 'aviso');
+    }
+
+    function atualizarLabelCountdown() {
+      if (btnReenviarLabel) {
+        btnReenviarLabel.textContent = t('login_otp_resend');
+      }
+    }
+
+    // Alternar visibilidade da senha
+    btnToggleSenha?.addEventListener('click', () => {
+      const type = inputSenha.getAttribute('type') === 'password' ? 'text' : 'password';
+      inputSenha.setAttribute('type', type);
+      btnToggleSenha.textContent = type === 'password' ? '👁️' : '🔒';
+    });
+
+    // Transições de estados
+    function mudarEstado(estado) {
+      stateLogin.classList.remove('active');
+      stateOtp.classList.remove('active');
+      stateRecuperar.classList.remove('active');
+
+      if (estado === 'login') stateLogin.classList.add('active');
+      if (estado === 'otp') stateOtp.classList.add('active');
+      if (estado === 'recuperar') stateRecuperar.classList.add('active');
+      aplicarTraducoes();
+    }
+
+    document.getElementById('btn-ir-recuperar')?.addEventListener('click', () => {
+      if (inputRecuperarEmail && inputEmail.value) inputRecuperarEmail.value = inputEmail.value;
+      mudarEstado('recuperar');
+    });
+
+    document.getElementById('btn-voltar-login')?.addEventListener('click', () => {
+      if (countdownInterval) clearInterval(countdownInterval);
+      mudarEstado('login');
+    });
+
+    document.getElementById('btn-voltar-de-recuperar')?.addEventListener('click', () => {
+      mudarEstado('login');
+    });
+
+    // 1. Submit Login -> Solicita OTP
+    formLogin?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = inputEmail.value.trim();
+      const senha = inputSenha.value;
+
+      if (!email || !senha) {
+        mostrarToast(t('msg_fill_all_fields'), 'aviso');
+        return;
+      }
+
+      mostrarLoading(t('processing'));
+      try {
+        const res = await solicitarLogin(email, senha);
+        emailEmAutenticacao = email;
+        if (otpEmailDestino) otpEmailDestino.textContent = email;
+
+        mostrarToast(t('msg_login_otp_sent'), 'sucesso');
+        mudarEstado('otp');
+        iniciarCountdownReenvio();
+
+        // Limpa campos de OTP e foca no primeiro dígito
+        otpDigits.forEach(d => d.value = '');
+        setTimeout(() => otpDigits[0].focus(), 150);
+
+      } catch (err) {
+        console.error(err);
+        mostrarToast(err.message || t('msg_error_generic'), 'erro');
+      } finally {
+        esconderLoading();
+      }
+    });
+
+    // 2. Comportamento inteligente dos 6 inputs de OTP
+    otpDigits.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        const val = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = val;
+
+        if (val && index < 5) {
+          otpDigits[index + 1].focus();
+        }
+
+        // Se preencheu o 6º, submete automaticamente
+        const codigoCompleto = otpDigits.map(d => d.value).join('');
+        if (codigoCompleto.length === 6) {
+          formOtp.requestSubmit();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !input.value && index > 0) {
+          otpDigits[index - 1].focus();
+        }
+      });
+
+      // Suporte a colar código de 6 dígitos de uma só vez
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const texto = (e.clipboardData || window.clipboardData).getData('text').trim();
+        const numeros = texto.replace(/[^0-9]/g, '').slice(0, 6);
+        if (numeros.length > 0) {
+          for (let i = 0; i < numeros.length; i++) {
+            if (otpDigits[i]) otpDigits[i].value = numeros[i];
+          }
+          const proximoFoco = Math.min(numeros.length, 5);
+          otpDigits[proximoFoco].focus();
+          if (numeros.length === 6) {
+            formOtp.requestSubmit();
+          }
+        }
+      });
+    });
+
+    // 3. Submit OTP
+    formOtp?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const codigo = otpDigits.map(d => d.value).join('');
+
+      if (codigo.length < 6) {
+        mostrarToast(t('login_otp_placeholder'), 'aviso');
+        return;
+      }
+
+      mostrarLoading(t('processing'));
+      try {
+        const res = await validarOTP(emailEmAutenticacao, codigo);
+        mostrarToast(t('msg_login_success'), 'sucesso');
+        salvarSessao(res);
+      } catch (err) {
+        console.error(err);
+        mostrarToast(err.message || t('msg_otp_invalid'), 'erro');
+        otpDigits.forEach(d => d.value = '');
+        otpDigits[0].focus();
+      } finally {
+        esconderLoading();
+      }
+    });
+
+    // Contador de 60 segundos para reenvio
+    function iniciarCountdownReenvio() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownSegundos = 60;
+      btnReenviarOtp.disabled = true;
+      btnReenviarOtp.style.cursor = 'not-allowed';
+      btnReenviarOtp.style.color = 'var(--cor-texto-claro)';
+      if (countdownEl) countdownEl.textContent = countdownSegundos;
+      atualizarLabelCountdown();
+
+      countdownInterval = setInterval(() => {
+        countdownSegundos--;
+        if (countdownEl) countdownEl.textContent = countdownSegundos;
+        if (countdownSegundos <= 0) {
+          clearInterval(countdownInterval);
+          btnReenviarOtp.disabled = false;
+          btnReenviarOtp.style.cursor = 'pointer';
+          btnReenviarOtp.style.color = 'var(--meo-azul)';
+          if (btnReenviarLabel) btnReenviarLabel.textContent = t('login_otp_resend');
+          if (countdownEl) countdownEl.textContent = '';
+        }
+      }, 1000);
+    }
+
+    btnReenviarOtp?.addEventListener('click', async () => {
+      if (btnReenviarOtp.disabled) return;
+      mostrarLoading(t('processing'));
+      try {
+        await solicitarLogin(emailEmAutenticacao, inputSenha.value);
+        mostrarToast(t('msg_login_otp_sent'), 'sucesso');
+        iniciarCountdownReenvio();
+        otpDigits.forEach(d => d.value = '');
+        otpDigits[0].focus();
+      } catch (err) {
+        mostrarToast(err.message || t('msg_error_generic'), 'erro');
+      } finally {
+        esconderLoading();
+      }
+    });
+
+    // 4. Submit Recuperação de Senha
+    formRecuperar?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = inputRecuperarEmail.value.trim();
+      if (!email) {
+        mostrarToast(t('msg_fill_all_fields'), 'aviso');
+        return;
+      }
+
+      mostrarLoading(t('processing'));
+      try {
+        const res = await recuperarSenha(email);
+        mostrarToast(res.mensagem || t('msg_recovery_sent'), 'sucesso');
+        setTimeout(() => {
+          mudarEstado('login');
+        }, 2000);
+      } catch (err) {
+        mostrarToast(err.message || t('msg_error_generic'), 'erro');
+      } finally {
+        esconderLoading();
+      }
+    });
+  </script>
+</body>
+</html>

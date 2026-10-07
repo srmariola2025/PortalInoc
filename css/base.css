@@ -1,0 +1,92 @@
+/* ==========================================================================
+   CSS/BASE.CSS — RESET E TIPOGRAFIA BASE
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--fonte-principal);
+  background-color: var(--cor-fundo);
+  color: var(--cor-texto);
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--cor-texto);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: 1.875rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.125rem; }
+
+p {
+  margin-bottom: var(--espacamento-sm);
+  color: var(--cor-texto);
+}
+
+a {
+  color: var(--meo-azul);
+  text-decoration: none;
+  transition: var(--transicao-padrao);
+}
+
+a:hover {
+  color: var(--meo-azul-escuro);
+  text-decoration: underline;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: inherit;
+}
+
+code, kbd, samp, pre {
+  font-family: var(--fonte-mono);
+  font-size: 0.875em;
+}
+
+/* Foco visível acessível */
+:focus-visible {
+  outline: 2px solid var(--meo-azul);
+  outline-offset: 2px;
+}
+
+/* Scrollbar estilizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #E5E7EB;
+}
+::-webkit-scrollbar-thumb {
+  background: #9CA3AF;
+  border-radius: var(--raio-borda-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}

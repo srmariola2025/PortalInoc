@@ -1,0 +1,219 @@
+/* ==========================================================================
+   CSS/LAYOUT.CSS — HEADER, CONTAINER, GRID E ESTRUTURA GLOBAL
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   HEADER PRINCIPAL DO PORTAL (FIXO)
+   -------------------------------------------------------------------------- */
+.portal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background-color: var(--meo-azul-escuro);
+  border-bottom: 2px solid var(--meo-azul);
+  color: #FFFFFF;
+  box-shadow: var(--sombra-media);
+  padding: 0 var(--espacamento-lg);
+}
+
+.portal-header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacamento-md);
+}
+
+.portal-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--espacamento-md);
+  text-decoration: none;
+  color: #FFFFFF;
+}
+
+.portal-brand img, .portal-brand .meo-logo-img {
+  height: 34px;
+  width: auto;
+  filter: brightness(0) invert(1); /* Deixa a logo MEO branca no header */
+}
+
+.portal-title-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-brand-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  line-height: 1.1;
+}
+
+.portal-brand-subtitle {
+  font-size: 0.6875rem;
+  color: var(--meo-azul-claro);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.portal-user-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--espacamento-md);
+}
+
+/* Badge de Timer de Sessão (15 min) */
+.session-timer-badge {
+  background-color: var(--meo-laranja);
+  color: #FFFFFF;
+  padding: 5px 12px;
+  border-radius: var(--raio-borda-full);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-family: var(--fonte-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.session-timer-badge.expirando {
+  background-color: var(--cor-erro);
+  animation: pulsarTimer 1s infinite alternate;
+}
+
+@keyframes pulsarTimer {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+
+.user-profile-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 0.8125rem;
+}
+.user-profile-name {
+  font-weight: 700;
+  color: #FFFFFF;
+}
+.user-profile-type {
+  font-size: 0.6875rem;
+  color: var(--meo-azul-claro);
+}
+
+/* --------------------------------------------------------------------------
+   CONTAINER E MAIN CONTENT
+   -------------------------------------------------------------------------- */
+.main-wrapper {
+  flex: 1;
+  padding: var(--espacamento-lg) var(--espacamento-md);
+}
+
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacamento-md);
+  margin-bottom: var(--espacamento-lg);
+  padding-bottom: var(--espacamento-md);
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.page-title {
+  font-size: 1.625rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--espacamento-sm);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--cor-texto-claro);
+  margin-bottom: var(--espacamento-sm);
+}
+.breadcrumb a {
+  color: var(--meo-azul-escuro);
+  font-weight: 500;
+}
+.breadcrumb a:hover {
+  color: var(--meo-azul);
+}
+.breadcrumb-separator {
+  color: var(--cor-texto-muted);
+}
+
+/* --------------------------------------------------------------------------
+   GRID DE TICKETS (DASHBOARD)
+   -------------------------------------------------------------------------- */
+.tickets-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--espacamento-md);
+}
+
+@media (min-width: 768px) {
+  .tickets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .tickets-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   FOOTER
+   -------------------------------------------------------------------------- */
+.portal-footer {
+  background-color: #FFFFFF;
+  border-top: 1px solid var(--cor-borda);
+  padding: var(--espacamento-lg) var(--espacamento-md);
+  font-size: 0.8125rem;
+  color: var(--cor-texto-claro);
+  margin-top: auto;
+}
+
+.portal-footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .portal-footer-inner {
+    flex-direction: row;
+    justify-content: space-between;
+    text-align: left;
+  }
+}

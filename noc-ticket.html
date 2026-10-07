@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="noc_ticket_meta_title">NOC Master Management | INOC — MEO International</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/meo-logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./css/variables.css">
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/pages.css">
+</head>
+<body>
+
+  <div id="header-container"></div>
+
+  <main class="main-wrapper">
+    <div class="container">
+      
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb" aria-label="Breadcrumb navigation">
+        <a href="./noc.html" data-i18n="btn_noc_panel">NOC Panel</a>
+        <span class="breadcrumb-separator">/</span>
+        <span>Ticket <span id="breadcrumb-ticket-id" style="font-family: var(--fonte-mono); font-weight: 700;"></span></span>
+      </nav>
+
+      <!-- Painel de Ações e Mudança de Status do NOC Master -->
+      <div class="card" style="margin-bottom: 24px; border-left: 5px solid var(--meo-azul);">
+        <div class="card-body" style="padding: 16px 20px;">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+            <div>
+              <span class="badge badge-noc" style="font-size: 0.75rem; margin-bottom: 4px;">NOC GOVERNANCE & SLA</span>
+              <h3 style="font-size: 1.125rem; margin: 0; color: var(--cor-texto);" data-i18n="noc_ticket_status_box_title">
+                Incident Status & SLA Management
+              </h3>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+              <!-- Dropdown de Status -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="select-novo-status" style="font-size: 0.8125rem; font-weight: 600; color: var(--cor-texto-claro);" data-i18n="noc_ticket_change_status_label">
+                  Update Status:
+                </label>
+                <select id="select-novo-status" class="form-select" style="padding: 7px 12px; font-size: 0.875rem; min-width: 160px;">
+                  <option value="ABERTO" data-i18n="status_aberto">Open</option>
+                  <option value="EM_RESOLUCAO" data-i18n="status_em_resolucao">In Resolution</option>
+                  <option value="PENDENTE" data-i18n="status_pendente">Pending (Client / Carrier)</option>
+                  <option value="RESOLVIDO" data-i18n="status_resolvido">Resolved</option>
+                </select>
+              </div>
+
+              <!-- Input de SLA para status PENDENTE (Obrigatório se Pendente) -->
+              <div id="grupo-data-pendencia" style="display: none; align-items: center; gap: 6px;">
+                <label for="input-data-pendencia" style="font-size: 0.8125rem; font-weight: 700; color: var(--cor-roxo);" data-i18n="pending_until">
+                  ⏰ SLA Deadline:
+                </label>
+                <input type="datetime-local" id="input-data-pendencia" class="form-control" style="padding: 5px 8px; font-size: 0.8125rem;" />
+              </div>
+
+              <button type="button" id="btn-aplicar-status" class="btn btn-primary btn-sm" data-i18n="noc_ticket_btn_update_status">
+                Apply Status Change
+              </button>
+
+              <!-- Botão Reabrir (Apenas se RESOLVIDO hoje) -->
+              <button type="button" id="btn-reabrir-ticket" class="btn btn-sm btn-secondary" style="display: none;">
+                🔄 Reopen Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout em duas colunas -->
+      <div class="ticket-detail-grid">
+        
+        <!-- Metadados à esquerda -->
+        <aside>
+          <div class="card">
+            <div class="card-body" id="ticket-meta-container">
+              <p style="color: var(--cor-texto-claro); font-size: 0.875rem;" data-i18n="loading">Loading ticket details...</p>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Timeline e Formulário de Parecer do NOC à direita -->
+        <section style="display: flex; flex-direction: column;">
+          <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="card-header">
+              <h2 style="font-size: 1.0625rem; font-weight: 700; color: var(--cor-texto); margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span data-i18n="ticket_section_timeline">💬 Technical Resolution Timeline & Communications</span>
+              </h2>
+              <span style="font-size: 0.75rem; color: var(--cor-texto-muted);">
+                INOC Operations Audit Trail
+              </span>
+            </div>
+
+            <div class="card-body" style="padding: 16px; flex: 1;">
+              <div id="timeline-container" class="timeline-container">
+                <!-- Renderizado via js/noc-ticket.js -->
+              </div>
+
+              <!-- Caixa de Comentário Técnico do NOC -->
+              <div class="timeline-reply-box">
+                <form id="form-comentario-master" novalidate>
+                  <label for="comentario-mensagem-master" style="display: block; font-size: 0.8125rem; font-weight: 700; color: var(--cor-texto); margin-bottom: 6px;" data-i18n="noc_ticket_comment_title">
+                    Publish Official INOC Technical Update:
+                  </label>
+                  <textarea id="comentario-mensagem-master" class="form-textarea" rows="3"
+                            data-i18n-placeholder="noc_ticket_comment_placeholder"
+                            placeholder="Technical report, RFO, fiber splice coordinates, carrier dispatch info..." required></textarea>
+
+                  <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                    <button type="submit" class="btn btn-primary" id="btn-enviar-master" data-i18n="noc_ticket_comment_submit">
+                      Publish & Notify Client
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="portal-footer">
+    <div class="portal-footer-inner">
+      <div><strong data-i18n="footer_brand">MEO International — INOC Master Operations Console</strong></div>
+      <div><span data-i18n="footer_support">24x7 NOC Hotline:</span> inoc@meo.pt • <span data-i18n="footer_copyright">© 2026 MEO International. All rights reserved.</span></div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { protegerRota } from './js/router.js';
+    import { aplicarTraducoes } from './js/i18n.js';
+    protegerRota(true);
+    aplicarTraducoes();
+  </script>
+  <script type="module" src="./js/noc-ticket.js"></script>
+</body>
+</html>
