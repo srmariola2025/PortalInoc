@@ -50,11 +50,21 @@ export async function apiRequest(action, payload = {}, requerToken = true) {
     return await chamarAppsScriptRun(action, payload, token);
   }
 
-  // 2. Ambiente de desenvolvimento (apenas localhost / preview de desenvolvimento)
+  // 2. Se for acesso direto ao GitHub Pages sem o host Apps Script
+  const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+  if (isGitHubPages) {
+    const msgErro = 'Acesso direto via GitHub Pages não suportado. Por favor, acesse o portal através da URL oficial do Google Apps Script Web App.';
+    mostrarToast(msgErro, 'erro');
+    throw new Error(msgErro);
+  }
+
+  // 3. Ambiente de desenvolvimento (localhost ou preview do AI Studio / Cloud Run)
   const isDev = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname.endsWith('.applet.ai') ||
+    window.location.hostname.includes('run.app') ||
+    window.location.hostname.includes('googleusercontent.com') ||
     window.location.hostname.includes('webcontainer') ||
     window.location.port !== ''
   );
@@ -63,8 +73,8 @@ export async function apiRequest(action, payload = {}, requerToken = true) {
     return executarSimuladorLocal(action, payload, token);
   }
 
-  // 3. Produção fora do host Apps Script (ex: direto no github.io)
-  const msgErro = 'Acesso direto via GitHub Pages não suportado. Por favor, acesse o portal através da URL oficial do Google Apps Script Web App.';
+  // 4. Qualquer outro domínio externo sem o host Apps Script
+  const msgErro = 'Acesso direto não suportado. Por favor, acesse o portal através da URL oficial do Google Apps Script Web App.';
   mostrarToast(msgErro, 'erro');
   throw new Error(msgErro);
 }
